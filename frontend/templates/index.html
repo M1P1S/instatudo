@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InstaTudo</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+<!-- ══════════════════ LOGIN ══════════════════ -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">InstaTudo</div>
+    <div class="login-sub">Gerencie seu Instagram com inteligência</div>
+    <form id="login-form">
+      <div class="form-group">
+        <label class="form-label">Usuário do Instagram</label>
+        <input id="ig-user" class="form-input" type="text" placeholder="@seuperfil" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Senha</label>
+        <input id="ig-pass" class="form-input" type="password" placeholder="••••••••" required />
+      </div>
+      <div id="two-fa-row" class="form-group hidden">
+        <label class="form-label">Código 2FA</label>
+        <input id="ig-2fa" class="form-input" type="text" placeholder="000000" maxlength="6" />
+      </div>
+      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;margin-top:8px;">
+        Entrar
+      </button>
+    </form>
+    <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:16px;">
+      Suas credenciais são armazenadas apenas localmente.
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════ APP ══════════════════ -->
+<div id="app-screen" class="app hidden">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">📸 InstaTudo</div>
+    <button class="nav-item active" data-page="page-dashboard">
+      <span class="nav-icon">📊</span><span>Dashboard</span>
+    </button>
+    <button class="nav-item" data-page="page-follow">
+      <span class="nav-icon">➕</span><span>Auto-Follow</span>
+    </button>
+    <button class="nav-item" data-page="page-unfollow">
+      <span class="nav-icon">➖</span><span>Unfollow</span>
+    </button>
+    <button class="nav-item" data-page="page-content">
+      <span class="nav-icon">💡</span><span>Conteúdo</span>
+    </button>
+    <button class="nav-item" data-page="page-teleprompter">
+      <span class="nav-icon">🎬</span><span>Teleprompter</span>
+    </button>
+    <button class="nav-item" data-page="page-settings">
+      <span class="nav-icon">⚙️</span><span>Configurações</span>
+    </button>
+    <div style="flex:1"></div>
+    <button id="logout-btn" class="nav-item" style="color:var(--danger)">
+      <span class="nav-icon">🚪</span><span>Sair</span>
+    </button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page active">
+      <div class="flex justify-between items-center" style="margin-bottom:24px;">
+        <h1 class="page-title" style="margin:0">Dashboard</h1>
+        <button id="btn-capture" class="btn btn-outline btn-sm">📸 Capturar snapshot</button>
+      </div>
+
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-followers">—</div>
+          <div class="stat-label">Seguidores</div>
+          <div class="stat-delta delta-up" id="stat-growth">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-following">—</div>
+          <div class="stat-label">Seguindo</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-posts">—</div>
+          <div class="stat-label">Posts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-engagement">—</div>
+          <div class="stat-label">Engajamento médio</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-bot-followed">—</div>
+          <div class="stat-label">Seguidos pelo bot</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-bot-unfollowed">—</div>
+          <div class="stat-label">Unfollows pelo bot</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📷 Posts recentes</div>
+        <div class="post-grid" id="recent-posts">
+          <div class="text-muted">Carregando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FOLLOW ── -->
+    <div id="page-follow" class="page">
+      <h1 class="page-title">Auto-Follow</h1>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">⚙️ Configurar</div>
+          <div class="form-group">
+            <label class="form-label">Usuário alvo (fonte dos seguidores)</label>
+            <input id="follow-target" class="form-input" type="text" placeholder="@concorrente" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Seguir a lista de...</label>
+            <select id="follow-source" class="form-select">
+              <option value="followers">Seguidores desse perfil</option>
+              <option value="following">Quem esse perfil segue</option>
+            </select>
+          </div>
+          <div class="flex gap-8 mt-12">
+            <button id="btn-follow-start" class="btn btn-primary">▶ Iniciar</button>
+            <button id="btn-follow-stop" class="btn btn-danger">⏹ Parar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Status &nbsp;
+            <span id="follow-badge"><span class="badge badge-red"><span class="dot"></span>Parado</span></span>
+          </div>
+          <div class="stat-card" style="margin-bottom:12px;">
+            <div class="stat-value" id="follow-count">0</div>
+            <div class="stat-label">Seguidos hoje</div>
+          </div>
+          <div class="text-muted">Última ação: <span id="follow-last">—</span></div>
+          <div class="log-box mt-12" id="follow-log">Aguardando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── UNFOLLOW ── -->
+    <div id="page-unfollow" class="page">
+      <h1 class="page-title">Auto-Unfollow</h1>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">⚙️ Configurar</div>
+          <div class="form-group">
+            <label class="form-label">Modo de unfollow</label>
+            <select id="unfollow-mode" class="form-select">
+              <option value="non_followers">Somente quem NÃO me segue de volta</option>
+              <option value="all_followed">Todos que o bot seguiu (mesmo quem me segue)</option>
+            </select>
+          </div>
+          <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:13px;color:var(--warning);margin-bottom:16px;">
+            ⚠️ O unfollow atua apenas em usuários que o bot seguiu. Perfis seguidos manualmente não são afetados.
+          </div>
+          <div class="flex gap-8">
+            <button id="btn-unfollow-start" class="btn btn-primary">▶ Iniciar</button>
+            <button id="btn-unfollow-stop" class="btn btn-danger">⏹ Parar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            Status &nbsp;
+            <span id="unfollow-badge"><span class="badge badge-red"><span class="dot"></span>Parado</span></span>
+          </div>
+          <div class="stat-card" style="margin-bottom:12px;">
+            <div class="stat-value" id="unfollow-count">0</div>
+            <div class="stat-label">Unfollows hoje</div>
+          </div>
+          <div class="text-muted">Última ação: <span id="unfollow-last">—</span></div>
+          <div class="log-box mt-12" id="unfollow-log">Aguardando...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CONTENT ── -->
+    <div id="page-content" class="page">
+      <h1 class="page-title">Ideias de Conteúdo</h1>
+
+      <div class="tabs">
+        <div class="tab active" data-group="content" data-tab="tab-generate">✨ Gerar ideias</div>
+        <div class="tab" data-group="content" data-tab="tab-saved">💾 Salvos</div>
+      </div>
+
+      <div id="tab-generate" class="tab-pane" data-group="content">
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label">Tema / Palavra-chave</label>
+            <input id="content-topic" class="form-input" type="text" placeholder="ex: marketing digital, receitas, moda..." />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nicho (opcional)</label>
+            <input id="content-niche" class="form-input" type="text" placeholder="ex: empreendedorismo, fitness, viagens..." />
+          </div>
+          <button id="btn-generate" class="btn btn-primary">✨ Gerar ideias</button>
+        </div>
+        <div class="grid-2" id="generated-ideas"></div>
+      </div>
+
+      <div id="tab-saved" class="tab-pane hidden" data-group="content">
+        <div class="grid-2" id="saved-ideas">
+          <div class="text-muted">Nenhuma ideia salva.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TELEPROMPTER ── -->
+    <div id="page-teleprompter" class="page">
+      <h1 class="page-title">Teleprompter</h1>
+
+      <div class="tabs">
+        <div class="tab active" data-group="tp" data-tab="tab-new-script">✏️ Novo roteiro</div>
+        <div class="tab" data-group="tp" data-tab="tab-scripts-list">📋 Meus roteiros</div>
+      </div>
+
+      <div id="tab-new-script" class="tab-pane" data-group="tp">
+        <div class="card">
+          <div class="form-group">
+            <label class="form-label">Título do roteiro</label>
+            <input id="script-title" class="form-input" type="text" placeholder="ex: Vídeo de apresentação" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Roteiro</label>
+            <textarea id="script-content" class="form-textarea" placeholder="Escreva seu roteiro aqui. Ele será exibido no teleprompter linha por linha." style="min-height:200px"></textarea>
+          </div>
+          <div class="grid-2">
+            <div class="form-group">
+              <label class="form-label">Velocidade (1–10) — <span id="speed-label">3</span></label>
+              <input id="script-speed" type="range" min="1" max="10" value="3" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tamanho da fonte — <span id="fontsize-label">36px</span></label>
+              <input id="script-fontsize" type="range" min="20" max="72" value="36" />
+            </div>
+          </div>
+          <div class="flex gap-8 mt-12">
+            <button id="script-save-btn" class="btn btn-primary">💾 Salvar roteiro</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-scripts-list" class="tab-pane hidden" data-group="tp">
+        <div style="display:flex;flex-direction:column;gap:12px;" id="script-list">
+          <div class="text-muted">Nenhum roteiro salvo.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="page-settings" class="page">
+      <h1 class="page-title">Configurações</h1>
+
+      <div class="card">
+        <div class="card-title">⏱ Intervalos e limites</div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Delay mínimo entre follows (segundos)</label>
+            <input id="setting-follow_delay_min" class="form-input" type="number" min="10" max="300" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Delay máximo entre follows (segundos)</label>
+            <input id="setting-follow_delay_max" class="form-input" type="number" min="10" max="600" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Limite diário de follows</label>
+            <input id="setting-daily_follow_limit" class="form-input" type="number" min="1" max="150" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Limite diário de unfollows</label>
+            <input id="setting-daily_unfollow_limit" class="form-input" type="number" min="1" max="150" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dias antes de fazer unfollow automático</label>
+            <input id="setting-unfollow_after_days" class="form-input" type="number" min="1" max="30" />
+          </div>
+        </div>
+        <button id="btn-save-settings" class="btn btn-primary">💾 Salvar configurações</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">ℹ️ Dicas de segurança</div>
+        <ul style="font-size:13px;color:var(--text-muted);line-height:2;padding-left:20px;">
+          <li>Mantenha o delay mínimo em pelo menos 30 segundos</li>
+          <li>Não ultrapasse 50 follows/unfollows por dia para evitar bloqueios</li>
+          <li>Faça pausas de algumas horas entre sessões</li>
+          <li>Evite usar o bot 24h por dia — o Instagram detecta padrões robóticos</li>
+          <li>Sessões salvas localmente evitam re-login frequente</li>
+        </ul>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>

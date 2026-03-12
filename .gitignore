@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.env
+backend/db/instatudo.db
+backend/db/session.json
+*.egg-info/
+dist/
+build/
+.DS_Store

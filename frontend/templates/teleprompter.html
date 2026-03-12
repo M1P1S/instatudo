@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teleprompter – InstaTudo</title>
+  <style>
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --accent: #e1306c;
+      --speed: 3;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: Georgia, serif; overflow: hidden; height: 100vh; user-select: none; }
+
+    /* ── Controls bar ── */
+    #controls {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(0,0,0,.85); backdrop-filter: blur(10px);
+      padding: 12px 20px;
+      display: flex; align-items: center; gap: 16px;
+      border-bottom: 1px solid #222;
+      transition: opacity .3s;
+    }
+    #controls.hidden { opacity: 0; pointer-events: none; }
+    .ctrl-btn {
+      padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer;
+      font-size: 14px; font-weight: 700; transition: all .2s;
+    }
+    .ctrl-start { background: var(--accent); color: #fff; }
+    .ctrl-stop { background: #333; color: #fff; }
+    .ctrl-reset { background: #222; color: #aaa; }
+    .ctrl-label { font-size: 12px; color: #888; margin-right: 4px; }
+    .ctrl-slider { width: 100px; accent-color: var(--accent); }
+    .ctrl-title { font-size: 13px; font-weight: 700; color: #ddd; flex: 1; text-align: center; }
+
+    /* ── Mirror toggle ── */
+    .mirror-btn { background: #222; color: #aaa; padding: 8px 14px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; }
+    .mirror-btn.active { background: var(--accent); color: #fff; }
+
+    /* ── Scroll container ── */
+    #scroll-track {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #scroll-inner {
+      padding: 100vh 10vw;
+      will-change: transform;
+    }
+
+    #tp-text {
+      font-size: 36px;
+      line-height: 1.6;
+      text-align: center;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Center line ── */
+    #center-line {
+      position: fixed;
+      top: 50%;
+      left: 0; right: 0;
+      height: 2px;
+      background: rgba(225,48,108,.4);
+      pointer-events: none;
+    }
+
+    /* ── Progress ── */
+    #progress-bar {
+      position: fixed; bottom: 0; left: 0; height: 3px;
+      background: var(--accent);
+      transition: width .3s;
+    }
+
+    /* ── Overlay: word highlight ── */
+    #tp-text span { transition: color .15s; }
+    #tp-text span.active-word { color: var(--accent); }
+
+    /* ── Fullscreen hint ── */
+    #hint {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      font-size: 12px; color: #444; pointer-events: none;
+    }
+
+    body.mirrored #scroll-inner { transform: scaleX(-1); }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <button class="ctrl-btn ctrl-start" id="btn-start">▶ Iniciar</button>
+  <button class="ctrl-btn ctrl-stop" id="btn-pause">⏸ Pausar</button>
+  <button class="ctrl-btn ctrl-reset" id="btn-reset">⏮ Reiniciar</button>
+  <span class="ctrl-label">Velocidade</span>
+  <input type="range" class="ctrl-slider" id="speed-ctrl" min="1" max="10" value="3" />
+  <span class="ctrl-label">Fonte</span>
+  <input type="range" class="ctrl-slider" id="font-ctrl" min="20" max="72" value="36" />
+  <div class="ctrl-title" id="ctrl-title">—</div>
+  <button class="mirror-btn" id="btn-mirror">🪞 Espelhar</button>
+  <button class="ctrl-btn ctrl-stop" id="btn-fullscreen">⛶</button>
+</div>
+
+<div id="scroll-track">
+  <div id="scroll-inner">
+    <div id="tp-text">Carregando roteiro...</div>
+  </div>
+</div>
+
+<div id="center-line"></div>
+<div id="progress-bar" style="width:0%"></div>
+<div id="hint">Pressione F para tela cheia · H para ocultar controles · Setas para ajustar velocidade</div>
+
+<script>
+  const params = new URLSearchParams(location.search);
+  const scriptId = params.get('id');
+
+  let scrollPos = 0;
+  let running = false;
+  let raf = null;
+  let speed = 3;
+  let totalHeight = 0;
+  let mirrored = false;
+
+  // Load script
+  async function loadScript() {
+    if (!scriptId) { document.getElementById('tp-text').textContent = 'Nenhum roteiro selecionado.'; return; }
+    const res = await fetch(`/api/teleprompter/scripts/${scriptId}`);
+    const data = await res.json();
+    document.title = data.title + ' – Teleprompter';
+    document.getElementById('ctrl-title').textContent = data.title;
+    speed = data.speed || 3;
+    document.getElementById('speed-ctrl').value = speed;
+    document.getElementById('font-ctrl').value = data.font_size || 36;
+    document.getElementById('tp-text').style.fontSize = (data.font_size || 36) + 'px';
+    document.getElementById('tp-text').textContent = data.content;
+    computeHeight();
+  }
+
+  function computeHeight() {
+    const inner = document.getElementById('scroll-inner');
+    const text = document.getElementById('tp-text');
+    totalHeight = text.offsetHeight + window.innerHeight;
+  }
+
+  function scrollStep() {
+    if (!running) return;
+    const pixelsPerFrame = speed * 0.5;
+    scrollPos += pixelsPerFrame;
+    const inner = document.getElementById('scroll-inner');
+    inner.style.transform = `translateY(-${scrollPos}px)`;
+    // Progress
+    const pct = Math.min(100, (scrollPos / totalHeight) * 100);
+    document.getElementById('progress-bar').style.width = pct + '%';
+    if (scrollPos < totalHeight) {
+      raf = requestAnimationFrame(scrollStep);
+    } else {
+      running = false;
+    }
+  }
+
+  document.getElementById('btn-start').addEventListener('click', () => {
+    if (running) return;
+    running = true;
+    raf = requestAnimationFrame(scrollStep);
+  });
+
+  document.getElementById('btn-pause').addEventListener('click', () => {
+    running = false;
+    cancelAnimationFrame(raf);
+  });
+
+  document.getElementById('btn-reset').addEventListener('click', () => {
+    running = false;
+    cancelAnimationFrame(raf);
+    scrollPos = 0;
+    document.getElementById('scroll-inner').style.transform = 'translateY(0)';
+    document.getElementById('progress-bar').style.width = '0%';
+  });
+
+  document.getElementById('speed-ctrl').addEventListener('input', (e) => { speed = parseInt(e.target.value); });
+  document.getElementById('font-ctrl').addEventListener('input', (e) => {
+    document.getElementById('tp-text').style.fontSize = e.target.value + 'px';
+    computeHeight();
+  });
+
+  document.getElementById('btn-mirror').addEventListener('click', () => {
+    mirrored = !mirrored;
+    document.body.classList.toggle('mirrored', mirrored);
+    document.getElementById('btn-mirror').classList.toggle('active', mirrored);
+  });
+
+  document.getElementById('btn-fullscreen').addEventListener('click', () => {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  });
+
+  let controlsVisible = true;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+      else document.exitFullscreen();
+    }
+    if (e.key === 'h' || e.key === 'H') {
+      controlsVisible = !controlsVisible;
+      document.getElementById('controls').classList.toggle('hidden', !controlsVisible);
+    }
+    if (e.key === ' ') { e.preventDefault(); running ? document.getElementById('btn-pause').click() : document.getElementById('btn-start').click(); }
+    if (e.key === 'ArrowUp') { speed = Math.min(10, speed + 1); document.getElementById('speed-ctrl').value = speed; }
+    if (e.key === 'ArrowDown') { speed = Math.max(1, speed - 1); document.getElementById('speed-ctrl').value = speed; }
+    if (e.key === 'r' || e.key === 'R') document.getElementById('btn-reset').click();
+  });
+
+  // Hide cursor after inactivity
+  let cursorTimer;
+  document.addEventListener('mousemove', () => {
+    document.body.style.cursor = '';
+    clearTimeout(cursorTimer);
+    cursorTimer = setTimeout(() => { document.body.style.cursor = 'none'; }, 3000);
+  });
+
+  window.addEventListener('resize', computeHeight);
+  loadScript();
+</script>
+</body>
+</html>

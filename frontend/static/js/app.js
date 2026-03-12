@@ -273,21 +273,134 @@ function openTeleprompter(id) {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
-async function loadSettings() {
-  const s = await api('GET', '/api/settings');
-  Object.entries(s).forEach(([k, v]) => {
-    const el = document.getElementById(`setting-${k}`);
-    if (el) el.value = v;
+const DAY_LABELS = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+let _activeDays = new Set([0,1,2,3,4,5,6]);
+
+function buildDaysSelector() {
+  const container = document.getElementById('days-selector');
+  if (!container) return;
+  container.innerHTML = '';
+  DAY_LABELS.forEach((label, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'day-btn' + (_activeDays.has(i) ? ' active' : '');
+    btn.textContent = label;
+    btn.dataset.day = i;
+    btn.type = 'button';
+    btn.addEventListener('click', () => {
+      if (_activeDays.has(i)) {
+        if (_activeDays.size > 1) _activeDays.delete(i);
+      } else {
+        _activeDays.add(i);
+      }
+      btn.classList.toggle('active', _activeDays.has(i));
+    });
+    container.appendChild(btn);
   });
 }
 
+function buildHourTimeline() {
+  const container = document.getElementById('hour-timeline');
+  if (!container) return;
+  container.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    const block = document.createElement('div');
+    block.className = 'hour-block';
+    block.dataset.hour = h;
+    block.title = `${String(h).padStart(2,'0')}:00`;
+    container.appendChild(block);
+  }
+}
+
+function updateHourTimeline() {
+  const startEl = document.getElementById('setting-active_hours_start');
+  const endEl = document.getElementById('setting-active_hours_end');
+  if (!startEl || !endEl) return;
+  const start = parseInt(startEl.value) || 0;
+  const end = parseInt(endEl.value) || 23;
+  document.querySelectorAll('.hour-block').forEach(b => {
+    const h = parseInt(b.dataset.hour);
+    const active = start <= end ? (h >= start && h <= end) : (h >= start || h <= end);
+    b.classList.toggle('active-hour', active);
+  });
+}
+
+function updateDelayPreview() {
+  const minEl = document.getElementById('setting-follow_delay_min');
+  const maxEl = document.getElementById('setting-follow_delay_max');
+  const checked = document.querySelector('input[name="delay_unit"]:checked');
+  if (!minEl || !maxEl) return;
+  const unit = checked?.value || 'seconds';
+  const unitLabel = { seconds: 'segundo(s)', minutes: 'minuto(s)', hours: 'hora(s)' }[unit];
+  const preMin = document.getElementById('preview-min');
+  const preMax = document.getElementById('preview-max');
+  if (preMin) preMin.textContent = `${minEl.value || '?'} ${unitLabel}`;
+  if (preMax) preMax.textContent = `${maxEl.value || '?'} ${unitLabel}`;
+}
+
+document.getElementById('unit-selector')?.addEventListener('click', (e) => {
+  const label = e.target.closest('.unit-option');
+  if (!label) return;
+  document.querySelectorAll('.unit-option').forEach(l => l.classList.remove('selected'));
+  label.classList.add('selected');
+  label.querySelector('input[type=radio]').checked = true;
+  updateDelayPreview();
+});
+
+['setting-follow_delay_min','setting-follow_delay_max'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateDelayPreview);
+});
+['setting-active_hours_start','setting-active_hours_end'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateHourTimeline);
+});
+
+async function loadSettings() {
+  const s = await api('GET', '/api/settings');
+
+  const directKeys = ['follow_delay_min','follow_delay_max','follow_amount',
+    'daily_follow_limit','daily_unfollow_limit','unfollow_after_days',
+    'active_hours_start','active_hours_end'];
+  directKeys.forEach(k => {
+    const el = document.getElementById(`setting-${k}`);
+    if (el && s[k] != null) el.value = s[k];
+  });
+
+  // Unit selector
+  const unit = s['follow_delay_unit'] || 'seconds';
+  document.querySelectorAll('.unit-option').forEach(l => {
+    const match = l.dataset.unit === unit;
+    l.classList.toggle('selected', match);
+    const radio = l.querySelector('input[type=radio]');
+    if (radio) radio.checked = match;
+  });
+
+  // Days
+  const daysRaw = s['active_days'] || '0,1,2,3,4,5,6';
+  _activeDays = new Set(daysRaw.split(',').map(Number));
+
+  buildDaysSelector();
+  buildHourTimeline();
+  updateHourTimeline();
+  updateDelayPreview();
+}
+
 document.getElementById('btn-save-settings').addEventListener('click', async () => {
-  const keys = ['follow_delay_min','follow_delay_max','follow_amount','daily_follow_limit','daily_unfollow_limit','unfollow_after_days'];
-  for (const key of keys) {
+  const directKeys = ['follow_delay_min','follow_delay_max','follow_amount',
+    'daily_follow_limit','daily_unfollow_limit','unfollow_after_days',
+    'active_hours_start','active_hours_end'];
+  for (const key of directKeys) {
     const el = document.getElementById(`setting-${key}`);
     if (el) await api('POST', '/api/settings', { key, value: el.value });
   }
+
+  const unit = document.querySelector('input[name="delay_unit"]:checked')?.value || 'seconds';
+  await api('POST', '/api/settings', { key: 'follow_delay_unit', value: unit });
+
+  const days = [..._activeDays].sort().join(',');
+  await api('POST', '/api/settings', { key: 'active_days', value: days });
+
   toast('Configurações salvas!', 'success');
+  updateHourTimeline();
+  updateDelayPreview();
 });
 
 // ── History chart (simple text-based) ────────────────────────────────────────

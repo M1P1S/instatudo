@@ -269,38 +269,90 @@
     <div id="page-settings" class="page">
       <h1 class="page-title">Configurações</h1>
 
+      <!-- Intervalos de tempo -->
       <div class="card">
-        <div class="card-title">⏱ Intervalos</div>
+        <div class="card-title">⏱ Intervalos entre ações</div>
+        <p class="text-muted" style="margin-bottom:16px;">Define a pausa mínima e máxima entre cada follow/unfollow. Um valor aleatório dentro dessa faixa é usado a cada ação.</p>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Delay mínimo entre ações (segundos)</label>
+            <label class="form-label">Valor mínimo</label>
             <input id="setting-follow_delay_min" class="form-input" type="number" min="1" />
           </div>
           <div class="form-group">
-            <label class="form-label">Delay máximo entre ações (segundos)</label>
+            <label class="form-label">Valor máximo</label>
             <input id="setting-follow_delay_max" class="form-input" type="number" min="1" />
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Unidade de tempo</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;" id="unit-selector">
+            <label class="unit-option" data-unit="seconds">
+              <input type="radio" name="delay_unit" value="seconds" /> Segundos
+            </label>
+            <label class="unit-option" data-unit="minutes">
+              <input type="radio" name="delay_unit" value="minutes" /> Minutos
+            </label>
+            <label class="unit-option" data-unit="hours">
+              <input type="radio" name="delay_unit" value="hours" /> Horas
+            </label>
+          </div>
+        </div>
+        <!-- Preview do intervalo -->
+        <div id="delay-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--text-muted);margin-top:4px;">
+          ↔ A cada ação será aguardado entre <strong id="preview-min">—</strong> e <strong id="preview-max">—</strong>
+        </div>
+      </div>
+
+      <!-- Horário ativo -->
+      <div class="card">
+        <div class="card-title">🕐 Janela de horário ativo</div>
+        <p class="text-muted" style="margin-bottom:16px;">O bot só executa ações dentro deste intervalo de horas. Fora dele, fica em espera.</p>
+        <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Quantidade de usuários a buscar por sessão</label>
-            <input id="setting-follow_amount" class="form-input" type="number" min="1" />
+            <label class="form-label">Hora de início</label>
+            <input id="setting-active_hours_start" class="form-input" type="number" min="0" max="23" placeholder="0" />
           </div>
           <div class="form-group">
-            <label class="form-label">Dias antes de fazer unfollow automático</label>
-            <input id="setting-unfollow_after_days" class="form-input" type="number" min="1" />
+            <label class="form-label">Hora de fim</label>
+            <input id="setting-active_hours_end" class="form-input" type="number" min="0" max="23" placeholder="23" />
+          </div>
+        </div>
+        <!-- Timeline visual das 24h -->
+        <div style="margin-top:8px;">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Visualização das 24 horas</div>
+          <div id="hour-timeline" style="display:flex;gap:2px;height:28px;align-items:stretch;border-radius:6px;overflow:hidden;"></div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;">
+            <span>00h</span><span>06h</span><span>12h</span><span>18h</span><span>23h</span>
           </div>
         </div>
       </div>
 
+      <!-- Dias da semana -->
+      <div class="card">
+        <div class="card-title">📅 Dias da semana ativos</div>
+        <p class="text-muted" style="margin-bottom:16px;">Selecione em quais dias o bot pode agir.</p>
+        <div id="days-selector" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+
+      <!-- Limites diários -->
       <div class="card">
         <div class="card-title">🔢 Limites diários <span style="font-size:11px;color:var(--text-muted);font-weight:400">(0 = sem limite)</span></div>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Limite diário de follows (0 = ilimitado)</label>
-            <input id="setting-daily_follow_limit" class="form-input" type="number" min="0" />
+            <label class="form-label">Limite diário de follows</label>
+            <input id="setting-daily_follow_limit" class="form-input" type="number" min="0" placeholder="0 = ilimitado" />
           </div>
           <div class="form-group">
-            <label class="form-label">Limite diário de unfollows (0 = ilimitado)</label>
-            <input id="setting-daily_unfollow_limit" class="form-input" type="number" min="0" />
+            <label class="form-label">Limite diário de unfollows</label>
+            <input id="setting-daily_unfollow_limit" class="form-input" type="number" min="0" placeholder="0 = ilimitado" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Usuários a buscar por sessão</label>
+            <input id="setting-follow_amount" class="form-input" type="number" min="1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Dias para aguardar antes de unfollow</label>
+            <input id="setting-unfollow_after_days" class="form-input" type="number" min="1" />
           </div>
         </div>
         <button id="btn-save-settings" class="btn btn-primary">💾 Salvar configurações</button>

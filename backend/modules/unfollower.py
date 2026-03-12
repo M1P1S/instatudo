@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from .instagram_client import get_client
-from ..db.database import get_connection, get_setting, log_action
+from ..db.database import get_connection, get_setting, log_action, is_within_active_window, delay_to_seconds
 
 _unfollow_thread: Optional[threading.Thread] = None
 _unfollow_running = False
@@ -54,8 +54,11 @@ def start_auto_unfollow(mode: str = "non_followers"):
     def run():
         global _unfollow_running
         cl = get_client()
-        delay_min = int(get_setting("follow_delay_min") or 30)
-        delay_max = int(get_setting("follow_delay_max") or 90)
+        delay_min_raw = int(get_setting("follow_delay_min") or 30)
+        delay_max_raw = int(get_setting("follow_delay_max") or 90)
+        delay_unit = get_setting("follow_delay_unit") or "seconds"
+        delay_min = delay_to_seconds(delay_min_raw, delay_unit)
+        delay_max = delay_to_seconds(delay_max_raw, delay_unit)
         daily_limit = int(get_setting("daily_unfollow_limit") or 0)
 
         try:
@@ -89,6 +92,12 @@ def start_auto_unfollow(mode: str = "non_followers"):
                     # They follow back, skip
                     continue
 
+                allowed, reason = is_within_active_window()
+                if not allowed:
+                    _unfollow_status["log"].append(f"[{datetime.now().strftime('%H:%M:%S')}] ⏸ Aguardando janela ativa — {reason}")
+                    time.sleep(60)
+                    continue
+
                 try:
                     cl.user_unfollow(uid)
                     _mark_unfollowed(str(uid))
@@ -96,7 +105,7 @@ def start_auto_unfollow(mode: str = "non_followers"):
                     _unfollow_status["unfollowed_today"] = _count_unfollowed_today()
                     msg = f"Deixou de seguir @{username}"
                     _unfollow_status["last_action"] = msg
-                    _unfollow_status["log"].append(f"[{datetime.utcnow().strftime('%H:%M:%S')}] {msg}")
+                    _unfollow_status["log"].append(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
 
                     delay = random.randint(delay_min, delay_max)
                     time.sleep(delay)

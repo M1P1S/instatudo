@@ -16,7 +16,16 @@ if errorlevel 1 (
     exit /b 1
 )
 
-:: Cria ambiente virtual se nao existir
+:: Remove venv corrompido e recria
+if exist ".venv\Scripts\activate.bat" (
+    call .venv\Scripts\activate.bat
+    python -c "import uvicorn" > nul 2>&1
+    if errorlevel 1 (
+        echo Ambiente incompleto, recriando...
+        rmdir /s /q .venv
+    )
+)
+
 if not exist ".venv" (
     echo Criando ambiente virtual...
     python -m venv .venv
@@ -25,9 +34,11 @@ if not exist ".venv" (
 :: Ativa o ambiente virtual
 call .venv\Scripts\activate.bat
 
-:: Instala dependencias
+:: Atualiza pip e instala dependencias
+echo Atualizando pip...
+python -m pip install --upgrade pip --quiet
 echo Instalando dependencias...
-pip install -q -r requirements.txt
+pip install -r requirements.txt --quiet
 
 :: Inicia o servidor
 echo.

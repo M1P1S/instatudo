@@ -282,7 +282,7 @@ async function loadSettings() {
 }
 
 document.getElementById('btn-save-settings').addEventListener('click', async () => {
-  const keys = ['follow_delay_min','follow_delay_max','daily_follow_limit','daily_unfollow_limit','unfollow_after_days'];
+  const keys = ['follow_delay_min','follow_delay_max','follow_amount','daily_follow_limit','daily_unfollow_limit','unfollow_after_days'];
   for (const key of keys) {
     const el = document.getElementById(`setting-${key}`);
     if (el) await api('POST', '/api/settings', { key, value: el.value });

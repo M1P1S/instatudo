@@ -190,8 +190,8 @@ def delete_script(script_id: int):
 @app.get("/api/settings")
 def get_settings():
     keys = [
-        "follow_delay_min", "follow_delay_max", "daily_follow_limit",
-        "daily_unfollow_limit", "unfollow_after_days",
+        "follow_delay_min", "follow_delay_max", "follow_amount",
+        "daily_follow_limit", "daily_unfollow_limit", "unfollow_after_days",
         "unfollow_non_followers", "unfollow_followers"
     ]
     return {k: get_setting(k) for k in keys}

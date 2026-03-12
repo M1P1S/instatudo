@@ -56,13 +56,13 @@ def start_auto_unfollow(mode: str = "non_followers"):
         cl = get_client()
         delay_min = int(get_setting("follow_delay_min") or 30)
         delay_max = int(get_setting("follow_delay_max") or 90)
-        daily_limit = int(get_setting("daily_unfollow_limit") or 50)
+        daily_limit = int(get_setting("daily_unfollow_limit") or 0)
 
         try:
             my_id = cl.user_id
 
             # Get my current followers (as a set of user_ids)
-            my_followers = set(cl.user_followers(my_id, amount=5000).keys())
+            my_followers = set(cl.user_followers(my_id, amount=10000).keys())
 
             # Get users we followed via the bot
             conn = get_connection()
@@ -75,11 +75,12 @@ def start_auto_unfollow(mode: str = "non_followers"):
                 if not _unfollow_running:
                     break
 
-                unfollowed_today = _count_unfollowed_today()
-                if unfollowed_today >= daily_limit:
-                    msg = f"Limite diário de {daily_limit} unfollows atingido."
-                    _unfollow_status["log"].append(msg)
-                    break
+                if daily_limit > 0:
+                    unfollowed_today = _count_unfollowed_today()
+                    if unfollowed_today >= daily_limit:
+                        msg = f"Limite diário de {daily_limit} unfollows atingido."
+                        _unfollow_status["log"].append(msg)
+                        break
 
                 uid = int(row["user_id"])
                 username = row["username"]

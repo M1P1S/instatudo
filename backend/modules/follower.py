@@ -57,26 +57,28 @@ def start_auto_follow(target_username: str, source: str = "followers"):
         cl = get_client()
         delay_min = int(get_setting("follow_delay_min") or 30)
         delay_max = int(get_setting("follow_delay_max") or 90)
-        daily_limit = int(get_setting("daily_follow_limit") or 50)
+        daily_limit = int(get_setting("daily_follow_limit") or 0)
+        amount = int(get_setting("follow_amount") or 200)
 
         try:
             target_user = cl.user_info_by_username(target_username)
             target_id = target_user.pk
 
             if source == "followers":
-                users = cl.user_followers(target_id, amount=200)
+                users = cl.user_followers(target_id, amount=amount)
             else:
-                users = cl.user_following(target_id, amount=200)
+                users = cl.user_following(target_id, amount=amount)
 
             for uid, user in users.items():
                 if not _follow_running:
                     break
 
-                followed_today = _count_followed_today()
-                if followed_today >= daily_limit:
-                    msg = f"Limite diário de {daily_limit} follows atingido."
-                    _follow_status["log"].append(msg)
-                    break
+                if daily_limit > 0:
+                    followed_today = _count_followed_today()
+                    if followed_today >= daily_limit:
+                        msg = f"Limite diário de {daily_limit} follows atingido."
+                        _follow_status["log"].append(msg)
+                        break
 
                 # Skip already followed
                 conn = get_connection()

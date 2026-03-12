@@ -270,41 +270,40 @@
       <h1 class="page-title">Configurações</h1>
 
       <div class="card">
-        <div class="card-title">⏱ Intervalos e limites</div>
+        <div class="card-title">⏱ Intervalos</div>
         <div class="grid-2">
           <div class="form-group">
-            <label class="form-label">Delay mínimo entre follows (segundos)</label>
-            <input id="setting-follow_delay_min" class="form-input" type="number" min="10" max="300" />
+            <label class="form-label">Delay mínimo entre ações (segundos)</label>
+            <input id="setting-follow_delay_min" class="form-input" type="number" min="1" />
           </div>
           <div class="form-group">
-            <label class="form-label">Delay máximo entre follows (segundos)</label>
-            <input id="setting-follow_delay_max" class="form-input" type="number" min="10" max="600" />
+            <label class="form-label">Delay máximo entre ações (segundos)</label>
+            <input id="setting-follow_delay_max" class="form-input" type="number" min="1" />
           </div>
           <div class="form-group">
-            <label class="form-label">Limite diário de follows</label>
-            <input id="setting-daily_follow_limit" class="form-input" type="number" min="1" max="150" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Limite diário de unfollows</label>
-            <input id="setting-daily_unfollow_limit" class="form-input" type="number" min="1" max="150" />
+            <label class="form-label">Quantidade de usuários a buscar por sessão</label>
+            <input id="setting-follow_amount" class="form-input" type="number" min="1" />
           </div>
           <div class="form-group">
             <label class="form-label">Dias antes de fazer unfollow automático</label>
-            <input id="setting-unfollow_after_days" class="form-input" type="number" min="1" max="30" />
+            <input id="setting-unfollow_after_days" class="form-input" type="number" min="1" />
           </div>
         </div>
-        <button id="btn-save-settings" class="btn btn-primary">💾 Salvar configurações</button>
       </div>
 
       <div class="card">
-        <div class="card-title">ℹ️ Dicas de segurança</div>
-        <ul style="font-size:13px;color:var(--text-muted);line-height:2;padding-left:20px;">
-          <li>Mantenha o delay mínimo em pelo menos 30 segundos</li>
-          <li>Não ultrapasse 50 follows/unfollows por dia para evitar bloqueios</li>
-          <li>Faça pausas de algumas horas entre sessões</li>
-          <li>Evite usar o bot 24h por dia — o Instagram detecta padrões robóticos</li>
-          <li>Sessões salvas localmente evitam re-login frequente</li>
-        </ul>
+        <div class="card-title">🔢 Limites diários <span style="font-size:11px;color:var(--text-muted);font-weight:400">(0 = sem limite)</span></div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Limite diário de follows (0 = ilimitado)</label>
+            <input id="setting-daily_follow_limit" class="form-input" type="number" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Limite diário de unfollows (0 = ilimitado)</label>
+            <input id="setting-daily_unfollow_limit" class="form-input" type="number" min="0" />
+          </div>
+        </div>
+        <button id="btn-save-settings" class="btn btn-primary">💾 Salvar configurações</button>
       </div>
     </div>
 

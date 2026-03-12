@@ -71,8 +71,9 @@ def init_db():
     defaults = [
         ("follow_delay_min", "30"),
         ("follow_delay_max", "90"),
-        ("daily_follow_limit", "50"),
-        ("daily_unfollow_limit", "50"),
+        ("daily_follow_limit", "0"),
+        ("daily_unfollow_limit", "0"),
+        ("follow_amount", "500"),
         ("unfollow_after_days", "7"),
         ("unfollow_non_followers", "true"),
         ("unfollow_followers", "false"),

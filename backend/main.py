@@ -5,6 +5,10 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
+from dotenv import load_dotenv
+
+# Load .env before any module reads os.getenv()
+load_dotenv()
 
 from .db.database import init_db, get_setting, set_setting, get_connection
 from .modules import instagram_client, follower, unfollower, analytics, content, teleprompter

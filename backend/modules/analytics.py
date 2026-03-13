@@ -3,52 +3,44 @@ from .instagram_client import get_client
 from ..db.database import get_connection
 
 
-def capture_snapshot() -> dict:
-    """Captures current profile metrics and saves to DB."""
-    cl = get_client()
+def capture_snapshot(app_user_id: int = 0) -> dict:
+    cl = get_client(app_user_id)
     user = cl.user_info(cl.user_id)
-
-    followers = user.follower_count
-    following = user.following_count
-    media = user.media_count
 
     conn = get_connection()
     conn.execute(
-        """INSERT INTO analytics_snapshot (followers_count, following_count, media_count, captured_at)
-           VALUES (?, ?, ?, ?)""",
-        (followers, following, media, datetime.utcnow().isoformat())
+        """INSERT INTO analytics_snapshot (app_user_id, followers_count, following_count, media_count, captured_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        (app_user_id, user.follower_count, user.following_count, user.media_count, datetime.utcnow().isoformat())
     )
     conn.commit()
     conn.close()
 
     return {
-        "followers": followers,
-        "following": following,
-        "media_count": media,
+        "followers": user.follower_count,
+        "following": user.following_count,
+        "media_count": user.media_count,
         "captured_at": datetime.utcnow().isoformat(),
     }
 
 
-def get_snapshots(limit: int = 30) -> list:
+def get_snapshots(limit: int = 30, app_user_id: int = 0) -> list:
     conn = get_connection()
     rows = conn.execute(
-        "SELECT * FROM analytics_snapshot ORDER BY captured_at DESC LIMIT ?", (limit,)
+        "SELECT * FROM analytics_snapshot WHERE app_user_id=? ORDER BY captured_at DESC LIMIT ?",
+        (app_user_id, limit)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def get_profile_summary() -> dict:
-    """Returns current profile info + recent posts metrics."""
-    cl = get_client()
+def get_profile_summary(app_user_id: int = 0) -> dict:
+    cl = get_client(app_user_id)
     user = cl.user_info(cl.user_id)
 
-    # Get recent media
     medias = cl.user_medias(cl.user_id, amount=12)
     posts = []
-    total_likes = 0
-    total_comments = 0
-    total_views = 0
+    total_likes = total_comments = total_views = 0
 
     for m in medias:
         likes = m.like_count or 0
@@ -60,7 +52,6 @@ def get_profile_summary() -> dict:
         posts.append({
             "id": str(m.pk),
             "media_type": m.media_type,
-            "thumbnail": str(m.thumbnail_url or m.image_versions2 and "" or ""),
             "likes": likes,
             "comments": comments,
             "views": views,
@@ -68,10 +59,10 @@ def get_profile_summary() -> dict:
             "caption": (m.caption_text or "")[:120],
         })
 
-    # Growth calculation
     conn = get_connection()
     history = conn.execute(
-        "SELECT followers_count, captured_at FROM analytics_snapshot ORDER BY captured_at DESC LIMIT 2"
+        "SELECT followers_count, captured_at FROM analytics_snapshot WHERE app_user_id=? ORDER BY captured_at DESC LIMIT 2",
+        (app_user_id,)
     ).fetchall()
     conn.close()
 
@@ -79,9 +70,7 @@ def get_profile_summary() -> dict:
     if len(history) == 2:
         growth = history[0]["followers_count"] - history[1]["followers_count"]
 
-    avg_engagement = 0
-    if posts:
-        avg_engagement = round((total_likes + total_comments) / len(posts), 1)
+    avg_engagement = round((total_likes + total_comments) / len(posts), 1) if posts else 0
 
     return {
         "username": user.username,
@@ -99,19 +88,19 @@ def get_profile_summary() -> dict:
     }
 
 
-def get_follow_stats() -> dict:
+def get_follow_stats(app_user_id: int = 0) -> dict:
     conn = get_connection()
     total_followed = conn.execute(
-        "SELECT COUNT(*) as c FROM followed_users"
+        "SELECT COUNT(*) as c FROM followed_users WHERE app_user_id=?", (app_user_id,)
     ).fetchone()["c"]
     total_unfollowed = conn.execute(
-        "SELECT COUNT(*) as c FROM followed_users WHERE status='unfollowed'"
+        "SELECT COUNT(*) as c FROM followed_users WHERE app_user_id=? AND status='unfollowed'", (app_user_id,)
     ).fetchone()["c"]
     still_following = conn.execute(
-        "SELECT COUNT(*) as c FROM followed_users WHERE status='following'"
+        "SELECT COUNT(*) as c FROM followed_users WHERE app_user_id=? AND status='following'", (app_user_id,)
     ).fetchone()["c"]
     recent_log = conn.execute(
-        "SELECT * FROM follow_log ORDER BY created_at DESC LIMIT 20"
+        "SELECT * FROM follow_log WHERE app_user_id=? ORDER BY created_at DESC LIMIT 20", (app_user_id,)
     ).fetchall()
     conn.close()
 

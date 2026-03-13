@@ -4,42 +4,48 @@ from pathlib import Path
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, TwoFactorRequired
 
-SESSION_FILE = Path(__file__).parent.parent / "db" / "session.json"
+SESSION_DIR = Path(__file__).parent.parent / "db"
 
-_client: Client = None
+# Dict of clients keyed by app_user_id
+_clients: dict = {}
 
 
-def get_client() -> Client:
-    global _client
-    if _client is None:
-        _client = Client()
-        if SESSION_FILE.exists():
+def _session_file(user_id: int) -> Path:
+    return SESSION_DIR / f"session_{user_id}.json"
+
+
+def get_client(user_id: int = 0) -> Client:
+    global _clients
+    if user_id not in _clients:
+        _clients[user_id] = Client()
+        sf = _session_file(user_id)
+        if sf.exists():
             try:
-                _client.load_settings(SESSION_FILE)
+                _clients[user_id].load_settings(sf)
             except Exception:
                 pass
-    return _client
+    return _clients[user_id]
 
 
-def login(username: str, password: str, verification_code: str = None) -> dict:
-    cl = get_client()
+def login(username: str, password: str, verification_code: str = None, user_id: int = 0) -> dict:
+    cl = get_client(user_id)
+    sf = _session_file(user_id)
 
-    # Try to reuse saved session
-    if SESSION_FILE.exists():
+    if sf.exists():
         try:
-            cl.load_settings(SESSION_FILE)
+            cl.load_settings(sf)
             cl.login(username, password)
-            cl.dump_settings(SESSION_FILE)
+            cl.dump_settings(sf)
             return {"success": True, "message": "Sessão restaurada com sucesso."}
         except Exception:
-            pass  # Fall through to fresh login
+            pass
 
     try:
         if verification_code:
             cl.login(username, password, verification_code=verification_code)
         else:
             cl.login(username, password)
-        cl.dump_settings(SESSION_FILE)
+        cl.dump_settings(sf)
         return {"success": True, "message": "Login realizado com sucesso."}
     except TwoFactorRequired:
         return {"success": False, "requires_2fa": True, "message": "Código 2FA necessário."}
@@ -47,25 +53,27 @@ def login(username: str, password: str, verification_code: str = None) -> dict:
         return {"success": False, "message": str(e)}
 
 
-def is_logged_in() -> bool:
-    cl = get_client()
-    if not SESSION_FILE.exists():
+def is_logged_in(user_id: int = 0) -> bool:
+    sf = _session_file(user_id)
+    if not sf.exists():
         return False
+    cl = get_client(user_id)
     try:
-        cl.load_settings(SESSION_FILE)
+        cl.load_settings(sf)
         cl.get_timeline_feed()
         return True
     except Exception:
         return False
 
 
-def logout():
-    global _client
-    cl = get_client()
+def logout(user_id: int = 0):
+    global _clients
+    cl = get_client(user_id)
     try:
         cl.logout()
     except Exception:
         pass
-    if SESSION_FILE.exists():
-        SESSION_FILE.unlink()
-    _client = None
+    sf = _session_file(user_id)
+    if sf.exists():
+        sf.unlink()
+    _clients.pop(user_id, None)

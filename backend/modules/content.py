@@ -1,16 +1,10 @@
 """
-Content suggestion module.
-Uses analytics data to generate content ideas locally (no external AI cost).
-Ideas are rule-based + template-driven. If Ollama is installed, it also calls
-the local LLM for richer suggestions.
+Content suggestion module — template-based (no external AI cost).
 """
 from datetime import datetime
-import json
 import random
 from ..db.database import get_connection
 
-
-# ── Template bank ──────────────────────────────────────────────────────────────
 CONTENT_TEMPLATES = {
     "reels": [
         "🎬 {topic} em {duration} segundos – mostre o processo do zero ao resultado",
@@ -52,27 +46,22 @@ BEST_TIMES = {
 
 
 def generate_ideas(topic: str, niche: str = "", count: int = 8) -> list:
-    ideas = []
     variables = {
         "topic": topic,
         "number": random.choice(["3", "5", "7", "10"]),
         "duration": random.choice(["30", "60", "90"]),
         "period": random.choice(["manhã", "semana", "trabalho"]),
-        "period_2": random.choice(["diária", "semanal", "mensal"]),
     }
-
+    ideas = []
     for content_type, templates in CONTENT_TEMPLATES.items():
         for tpl in templates:
-            title = tpl.format(**variables)
-            hashtags = _generate_hashtags(topic, niche, content_type)
             ideas.append({
-                "title": title,
+                "title": tpl.format(**variables),
                 "content_type": content_type,
-                "description": _generate_description(title, topic),
-                "hashtags": hashtags,
+                "description": _generate_description(tpl.format(**variables), topic),
+                "hashtags": _generate_hashtags(topic, niche, content_type),
                 "best_times": _get_best_times(),
             })
-
     random.shuffle(ideas)
     return ideas[:count]
 
@@ -112,30 +101,33 @@ def _get_best_times() -> list:
     return BEST_TIMES.get(day, ["09:00", "12:00", "18:00"])
 
 
-def save_idea(title: str, description: str, hashtags: str, content_type: str) -> dict:
+def save_idea(title: str, description: str, hashtags: str, content_type: str, app_user_id: int = 0) -> dict:
     conn = get_connection()
     conn.execute(
-        """INSERT INTO content_ideas (title, description, hashtags, content_type, status, created_at)
-           VALUES (?, ?, ?, ?, 'pending', ?)""",
-        (title, description, hashtags, content_type, datetime.utcnow().isoformat())
+        """INSERT INTO content_ideas (app_user_id, title, description, hashtags, content_type, status, created_at)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?)""",
+        (app_user_id, title, description, hashtags, content_type, datetime.utcnow().isoformat())
     )
     conn.commit()
     conn.close()
     return {"success": True, "message": "Ideia salva com sucesso!"}
 
 
-def get_saved_ideas() -> list:
+def get_saved_ideas(app_user_id: int = 0) -> list:
     conn = get_connection()
     rows = conn.execute(
-        "SELECT * FROM content_ideas ORDER BY created_at DESC"
+        "SELECT * FROM content_ideas WHERE app_user_id=? ORDER BY created_at DESC", (app_user_id,)
     ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def update_idea_status(idea_id: int, status: str) -> dict:
+def update_idea_status(idea_id: int, status: str, app_user_id: int = 0) -> dict:
     conn = get_connection()
-    conn.execute("UPDATE content_ideas SET status=? WHERE id=?", (status, idea_id))
+    conn.execute(
+        "UPDATE content_ideas SET status=? WHERE id=? AND app_user_id=?",
+        (status, idea_id, app_user_id)
+    )
     conn.commit()
     conn.close()
     return {"success": True}

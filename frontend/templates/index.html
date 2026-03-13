@@ -8,31 +8,122 @@
 </head>
 <body>
 
-<!-- ══════════════════ LOGIN ══════════════════ -->
-<div id="login-screen" class="login-wrap">
-  <div class="login-box">
+<!-- ══════════════════ AUTH SCREEN (register / login) ══════════════════ -->
+<div id="auth-screen" class="login-wrap hidden">
+  <div class="login-box" style="width:420px;">
     <div class="login-logo">InstaTudo</div>
     <div class="login-sub">Gerencie seu Instagram com inteligência</div>
-    <form id="login-form">
+
+    <!-- Tabs -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-auth="login-form-wrap">Entrar</button>
+      <button class="auth-tab" data-auth="register-form-wrap">Criar conta</button>
+    </div>
+
+    <!-- Login -->
+    <div id="login-form-wrap">
+      <form id="login-form">
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input id="app-email" class="form-input" type="email" placeholder="seu@email.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha</label>
+          <input id="app-password" class="form-input" type="password" placeholder="••••••••" required autocomplete="current-password" />
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center;margin-top:8px;">Entrar</button>
+      </form>
+    </div>
+
+    <!-- Register -->
+    <div id="register-form-wrap" class="hidden">
+      <form id="register-form">
+        <div class="form-group">
+          <label class="form-label">Nome</label>
+          <input id="reg-name" class="form-input" type="text" placeholder="Seu nome" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">E-mail</label>
+          <input id="reg-email" class="form-input" type="email" placeholder="seu@email.com" required autocomplete="email" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Senha (mín. 6 caracteres)</label>
+          <input id="reg-password" class="form-input" type="password" placeholder="••••••••" required autocomplete="new-password" />
+        </div>
+        <button type="submit" class="btn btn-primary w-full" style="justify-content:center;margin-top:8px;">Criar conta grátis</button>
+      </form>
+      <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:12px;">
+        Plano Gratuito • Sem cartão de crédito
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ INSTAGRAM LOGIN MODAL ══════════════════ -->
+<div id="ig-login-modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title">Conectar Instagram</div>
+    <p class="text-muted" style="margin-bottom:16px;">Conecte sua conta do Instagram para usar o sistema.</p>
+    <form id="ig-login-form">
       <div class="form-group">
         <label class="form-label">Usuário do Instagram</label>
         <input id="ig-user" class="form-input" type="text" placeholder="@seuperfil" required />
       </div>
       <div class="form-group">
-        <label class="form-label">Senha</label>
-        <input id="ig-pass" class="form-input" type="password" placeholder="••••••••" required />
+        <label class="form-label">Senha do Instagram</label>
+        <input id="ig-pass" class="form-input" type="password" placeholder="••••••••" required autocomplete="off" />
       </div>
       <div id="two-fa-row" class="form-group hidden">
         <label class="form-label">Código 2FA</label>
         <input id="ig-2fa" class="form-input" type="text" placeholder="000000" maxlength="6" />
       </div>
-      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;margin-top:8px;">
-        Entrar
-      </button>
+      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;">Conectar</button>
     </form>
-    <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:16px;">
-      Suas credenciais são armazenadas apenas localmente.
+    <p style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:12px;">
+      Suas credenciais do Instagram são armazenadas apenas localmente.
     </p>
+  </div>
+</div>
+
+<!-- ══════════════════ UPGRADE MODAL ══════════════════ -->
+<div id="upgrade-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:500px;">
+    <div class="modal-title">Upgrade para Pro</div>
+    <div class="plan-cards">
+      <!-- Free -->
+      <div class="plan-card">
+        <div class="plan-name">Gratuito</div>
+        <div class="plan-price">R$ 0<span>/mês</span></div>
+        <ul class="plan-features">
+          <li class="feature-ok">✅ Dashboard</li>
+          <li class="feature-ok">✅ Analytics básico</li>
+          <li class="feature-no">❌ Auto-Follow</li>
+          <li class="feature-no">❌ Auto-Unfollow</li>
+          <li class="feature-no">❌ Ideias de conteúdo</li>
+          <li class="feature-no">❌ Teleprompter</li>
+        </ul>
+      </div>
+      <!-- Pro -->
+      <div class="plan-card plan-card-pro">
+        <div class="plan-badge-tag">RECOMENDADO</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">R$ 49,90<span>/mês</span></div>
+        <ul class="plan-features">
+          <li class="feature-ok">✅ Dashboard completo</li>
+          <li class="feature-ok">✅ Auto-Follow ilimitado</li>
+          <li class="feature-ok">✅ Auto-Unfollow ilimitado</li>
+          <li class="feature-ok">✅ Ideias de conteúdo</li>
+          <li class="feature-ok">✅ Teleprompter</li>
+          <li class="feature-ok">✅ Configurações avançadas</li>
+        </ul>
+        <button id="btn-checkout" class="btn btn-primary w-full" style="justify-content:center;margin-top:16px;">
+          Assinar Pro — R$ 49,90/mês
+        </button>
+      </div>
+    </div>
+    <button onclick="closeUpgradeModal()" class="btn btn-outline btn-sm" style="margin-top:12px;width:100%;justify-content:center;">
+      Fechar
+    </button>
   </div>
 </div>
 
@@ -42,25 +133,36 @@
   <!-- Sidebar -->
   <nav class="sidebar">
     <div class="logo">📸 InstaTudo</div>
+
     <button class="nav-item active" data-page="page-dashboard">
       <span class="nav-icon">📊</span><span>Dashboard</span>
     </button>
-    <button class="nav-item" data-page="page-follow">
+    <button class="nav-item pro-feature" data-page="page-follow">
       <span class="nav-icon">➕</span><span>Auto-Follow</span>
     </button>
-    <button class="nav-item" data-page="page-unfollow">
+    <button class="nav-item pro-feature" data-page="page-unfollow">
       <span class="nav-icon">➖</span><span>Unfollow</span>
     </button>
-    <button class="nav-item" data-page="page-content">
+    <button class="nav-item pro-feature" data-page="page-content">
       <span class="nav-icon">💡</span><span>Conteúdo</span>
     </button>
-    <button class="nav-item" data-page="page-teleprompter">
+    <button class="nav-item pro-feature" data-page="page-teleprompter">
       <span class="nav-icon">🎬</span><span>Teleprompter</span>
     </button>
-    <button class="nav-item" data-page="page-settings">
+    <button class="nav-item pro-feature" data-page="page-settings">
       <span class="nav-icon">⚙️</span><span>Configurações</span>
     </button>
+
     <div style="flex:1"></div>
+
+    <!-- Plan badge -->
+    <div id="plan-badge-wrap" style="padding:10px 14px;">
+      <div id="plan-badge-box" class="plan-badge-sidebar" onclick="showUpgradeModal()">
+        <span id="plan-badge-label">Gratuito</span>
+        <span id="plan-upgrade-hint" class="hidden" style="font-size:10px;opacity:.7;">↑ Upgrade</span>
+      </div>
+    </div>
+
     <button id="logout-btn" class="nav-item" style="color:var(--danger)">
       <span class="nav-icon">🚪</span><span>Sair</span>
     </button>
@@ -118,7 +220,6 @@
     <!-- ── FOLLOW ── -->
     <div id="page-follow" class="page">
       <h1 class="page-title">Auto-Follow</h1>
-
       <div class="grid-2">
         <div class="card">
           <div class="card-title">⚙️ Configurar</div>
@@ -138,7 +239,6 @@
             <button id="btn-follow-stop" class="btn btn-danger">⏹ Parar</button>
           </div>
         </div>
-
         <div class="card">
           <div class="card-title">
             Status &nbsp;
@@ -157,7 +257,6 @@
     <!-- ── UNFOLLOW ── -->
     <div id="page-unfollow" class="page">
       <h1 class="page-title">Auto-Unfollow</h1>
-
       <div class="grid-2">
         <div class="card">
           <div class="card-title">⚙️ Configurar</div>
@@ -169,14 +268,13 @@
             </select>
           </div>
           <div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:8px;padding:12px;font-size:13px;color:var(--warning);margin-bottom:16px;">
-            ⚠️ O unfollow atua apenas em usuários que o bot seguiu. Perfis seguidos manualmente não são afetados.
+            ⚠️ O unfollow atua apenas em usuários que o bot seguiu.
           </div>
           <div class="flex gap-8">
             <button id="btn-unfollow-start" class="btn btn-primary">▶ Iniciar</button>
             <button id="btn-unfollow-stop" class="btn btn-danger">⏹ Parar</button>
           </div>
         </div>
-
         <div class="card">
           <div class="card-title">
             Status &nbsp;
@@ -195,12 +293,10 @@
     <!-- ── CONTENT ── -->
     <div id="page-content" class="page">
       <h1 class="page-title">Ideias de Conteúdo</h1>
-
       <div class="tabs">
         <div class="tab active" data-group="content" data-tab="tab-generate">✨ Gerar ideias</div>
         <div class="tab" data-group="content" data-tab="tab-saved">💾 Salvos</div>
       </div>
-
       <div id="tab-generate" class="tab-pane" data-group="content">
         <div class="card">
           <div class="form-group">
@@ -209,29 +305,24 @@
           </div>
           <div class="form-group">
             <label class="form-label">Nicho (opcional)</label>
-            <input id="content-niche" class="form-input" type="text" placeholder="ex: empreendedorismo, fitness, viagens..." />
+            <input id="content-niche" class="form-input" type="text" placeholder="ex: empreendedorismo, fitness..." />
           </div>
           <button id="btn-generate" class="btn btn-primary">✨ Gerar ideias</button>
         </div>
         <div class="grid-2" id="generated-ideas"></div>
       </div>
-
       <div id="tab-saved" class="tab-pane hidden" data-group="content">
-        <div class="grid-2" id="saved-ideas">
-          <div class="text-muted">Nenhuma ideia salva.</div>
-        </div>
+        <div class="grid-2" id="saved-ideas"><div class="text-muted">Nenhuma ideia salva.</div></div>
       </div>
     </div>
 
     <!-- ── TELEPROMPTER ── -->
     <div id="page-teleprompter" class="page">
       <h1 class="page-title">Teleprompter</h1>
-
       <div class="tabs">
         <div class="tab active" data-group="tp" data-tab="tab-new-script">✏️ Novo roteiro</div>
         <div class="tab" data-group="tp" data-tab="tab-scripts-list">📋 Meus roteiros</div>
       </div>
-
       <div id="tab-new-script" class="tab-pane" data-group="tp">
         <div class="card">
           <div class="form-group">
@@ -240,7 +331,7 @@
           </div>
           <div class="form-group">
             <label class="form-label">Roteiro</label>
-            <textarea id="script-content" class="form-textarea" placeholder="Escreva seu roteiro aqui. Ele será exibido no teleprompter linha por linha." style="min-height:200px"></textarea>
+            <textarea id="script-content" class="form-textarea" placeholder="Escreva seu roteiro aqui." style="min-height:200px"></textarea>
           </div>
           <div class="grid-2">
             <div class="form-group">
@@ -252,12 +343,9 @@
               <input id="script-fontsize" type="range" min="20" max="72" value="36" />
             </div>
           </div>
-          <div class="flex gap-8 mt-12">
-            <button id="script-save-btn" class="btn btn-primary">💾 Salvar roteiro</button>
-          </div>
+          <button id="script-save-btn" class="btn btn-primary mt-12">💾 Salvar roteiro</button>
         </div>
       </div>
-
       <div id="tab-scripts-list" class="tab-pane hidden" data-group="tp">
         <div style="display:flex;flex-direction:column;gap:12px;" id="script-list">
           <div class="text-muted">Nenhum roteiro salvo.</div>
@@ -268,11 +356,9 @@
     <!-- ── SETTINGS ── -->
     <div id="page-settings" class="page">
       <h1 class="page-title">Configurações</h1>
-
-      <!-- Intervalos de tempo -->
       <div class="card">
         <div class="card-title">⏱ Intervalos entre ações</div>
-        <p class="text-muted" style="margin-bottom:16px;">Define a pausa mínima e máxima entre cada follow/unfollow. Um valor aleatório dentro dessa faixa é usado a cada ação.</p>
+        <p class="text-muted" style="margin-bottom:16px;">Pausa mínima e máxima entre cada follow/unfollow.</p>
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Valor mínimo</label>
@@ -286,27 +372,17 @@
         <div class="form-group">
           <label class="form-label">Unidade de tempo</label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;" id="unit-selector">
-            <label class="unit-option" data-unit="seconds">
-              <input type="radio" name="delay_unit" value="seconds" /> Segundos
-            </label>
-            <label class="unit-option" data-unit="minutes">
-              <input type="radio" name="delay_unit" value="minutes" /> Minutos
-            </label>
-            <label class="unit-option" data-unit="hours">
-              <input type="radio" name="delay_unit" value="hours" /> Horas
-            </label>
+            <label class="unit-option" data-unit="seconds"><input type="radio" name="delay_unit" value="seconds" /> Segundos</label>
+            <label class="unit-option" data-unit="minutes"><input type="radio" name="delay_unit" value="minutes" /> Minutos</label>
+            <label class="unit-option" data-unit="hours"><input type="radio" name="delay_unit" value="hours" /> Horas</label>
           </div>
         </div>
-        <!-- Preview do intervalo -->
         <div id="delay-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--text-muted);margin-top:4px;">
           ↔ A cada ação será aguardado entre <strong id="preview-min">—</strong> e <strong id="preview-max">—</strong>
         </div>
       </div>
-
-      <!-- Horário ativo -->
       <div class="card">
         <div class="card-title">🕐 Janela de horário ativo</div>
-        <p class="text-muted" style="margin-bottom:16px;">O bot só executa ações dentro deste intervalo de horas. Fora dele, fica em espera.</p>
         <div class="grid-2">
           <div class="form-group">
             <label class="form-label">Hora de início</label>
@@ -317,7 +393,6 @@
             <input id="setting-active_hours_end" class="form-input" type="number" min="0" max="23" placeholder="23" />
           </div>
         </div>
-        <!-- Timeline visual das 24h -->
         <div style="margin-top:8px;">
           <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Visualização das 24 horas</div>
           <div id="hour-timeline" style="display:flex;gap:2px;height:28px;align-items:stretch;border-radius:6px;overflow:hidden;"></div>
@@ -326,15 +401,10 @@
           </div>
         </div>
       </div>
-
-      <!-- Dias da semana -->
       <div class="card">
         <div class="card-title">📅 Dias da semana ativos</div>
-        <p class="text-muted" style="margin-bottom:16px;">Selecione em quais dias o bot pode agir.</p>
         <div id="days-selector" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       </div>
-
-      <!-- Limites diários -->
       <div class="card">
         <div class="card-title">🔢 Limites diários <span style="font-size:11px;color:var(--text-muted);font-weight:400">(0 = sem limite)</span></div>
         <div class="grid-2">

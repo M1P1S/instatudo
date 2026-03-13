@@ -13,6 +13,11 @@ def get_client() -> Client:
     global _client
     if _client is None:
         _client = Client()
+        if SESSION_FILE.exists():
+            try:
+                _client.load_settings(SESSION_FILE)
+            except Exception:
+                pass
     return _client
 
 

@@ -66,8 +66,7 @@ def start_auto_follow(target_username: str, source: str = "followers"):
         amount = int(get_setting("follow_amount") or 200)
 
         try:
-            target_user = cl.user_info_by_username(target_username)
-            target_id = target_user.pk
+            target_id = cl.user_id_from_username(target_username)
 
             if source == "followers":
                 users = cl.user_followers(target_id, amount=amount)

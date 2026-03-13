@@ -95,12 +95,13 @@
         <div class="plan-name">Gratuito</div>
         <div class="plan-price">R$ 0<span>/mês</span></div>
         <ul class="plan-features">
-          <li class="feature-ok">✅ Dashboard</li>
-          <li class="feature-ok">✅ Analytics básico</li>
+          <li class="feature-ok">✅ Dashboard e analytics</li>
+          <li class="feature-ok">✅ Gerar ideias (ilimitado)</li>
+          <li class="feature-ok">✅ Salvar <strong>10 ideias/mês</strong></li>
+          <li class="feature-ok">✅ <strong>3 roteiros</strong> no Teleprompter</li>
           <li class="feature-no">❌ Auto-Follow</li>
           <li class="feature-no">❌ Auto-Unfollow</li>
-          <li class="feature-no">❌ Ideias de conteúdo</li>
-          <li class="feature-no">❌ Teleprompter</li>
+          <li class="feature-no">❌ Configurações avançadas</li>
         </ul>
       </div>
       <!-- Pro -->
@@ -112,9 +113,10 @@
           <li class="feature-ok">✅ Dashboard completo</li>
           <li class="feature-ok">✅ Auto-Follow ilimitado</li>
           <li class="feature-ok">✅ Auto-Unfollow ilimitado</li>
-          <li class="feature-ok">✅ Ideias de conteúdo</li>
-          <li class="feature-ok">✅ Teleprompter</li>
+          <li class="feature-ok">✅ Ideias ilimitadas</li>
+          <li class="feature-ok">✅ Roteiros ilimitados</li>
           <li class="feature-ok">✅ Configurações avançadas</li>
+          <li class="feature-ok">✅ Suporte prioritário</li>
         </ul>
         <button id="btn-checkout" class="btn btn-primary w-full" style="justify-content:center;margin-top:16px;">
           Assinar Pro — R$ 49,90/mês
@@ -143,10 +145,10 @@
     <button class="nav-item pro-feature" data-page="page-unfollow">
       <span class="nav-icon">➖</span><span>Unfollow</span>
     </button>
-    <button class="nav-item pro-feature" data-page="page-content">
+    <button class="nav-item" data-page="page-content">
       <span class="nav-icon">💡</span><span>Conteúdo</span>
     </button>
-    <button class="nav-item pro-feature" data-page="page-teleprompter">
+    <button class="nav-item" data-page="page-teleprompter">
       <span class="nav-icon">🎬</span><span>Teleprompter</span>
     </button>
     <button class="nav-item pro-feature" data-page="page-settings">
@@ -293,6 +295,7 @@
     <!-- ── CONTENT ── -->
     <div id="page-content" class="page">
       <h1 class="page-title">Ideias de Conteúdo</h1>
+      <div id="content-usage-banner"></div>
       <div class="tabs">
         <div class="tab active" data-group="content" data-tab="tab-generate">✨ Gerar ideias</div>
         <div class="tab" data-group="content" data-tab="tab-saved">💾 Salvos</div>
@@ -319,6 +322,7 @@
     <!-- ── TELEPROMPTER ── -->
     <div id="page-teleprompter" class="page">
       <h1 class="page-title">Teleprompter</h1>
+      <div id="tp-usage-banner"></div>
       <div class="tabs">
         <div class="tab active" data-group="tp" data-tab="tab-new-script">✏️ Novo roteiro</div>
         <div class="tab" data-group="tp" data-tab="tab-scripts-list">📋 Meus roteiros</div>

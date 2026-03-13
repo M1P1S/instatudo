@@ -92,7 +92,7 @@ document.querySelectorAll('.auth-tab').forEach(tab => {
 });
 
 // ── Plan UI ───────────────────────────────────────────────────────────────────
-function updatePlanUI(plan) {
+function updatePlanUI(plan, usage = {}) {
   const label = document.getElementById('plan-badge-label');
   const hint = document.getElementById('plan-upgrade-hint');
   const box = document.getElementById('plan-badge-box');
@@ -109,7 +109,7 @@ function updatePlanUI(plan) {
     box.style.background = 'var(--surface2)';
   }
 
-  // Lock/unlock Pro nav items
+  // Lock/unlock Pro-only nav items (follow, unfollow, settings)
   document.querySelectorAll('.pro-feature').forEach(el => {
     if (plan === 'pro') {
       el.classList.remove('nav-locked');
@@ -119,6 +119,40 @@ function updatePlanUI(plan) {
       el.title = 'Requer plano Pro';
     }
   });
+
+  // Show usage counters for free plan
+  if (plan !== 'pro' && usage) {
+    _renderUsageBanners(usage);
+  }
+}
+
+function _renderUsageBanners(usage) {
+  // Content usage banner
+  const contentBanner = document.getElementById('content-usage-banner');
+  if (contentBanner && usage.content_saves_this_month != null) {
+    const used = usage.content_saves_this_month;
+    const limit = usage.content_saves_limit;
+    const pct = Math.round((used / limit) * 100);
+    const color = pct >= 100 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)';
+    contentBanner.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span>💾 Ideias salvas este mês: <strong style="color:${color}">${used}/${limit}</strong></span>
+        ${pct >= 100 ? '<button class="btn btn-primary btn-sm" onclick="showUpgradeModal()">Upgrade Pro</button>' : ''}
+      </div>`;
+  }
+  // Teleprompter usage banner
+  const tpBanner = document.getElementById('tp-usage-banner');
+  if (tpBanner && usage.teleprompter_scripts != null) {
+    const used = usage.teleprompter_scripts;
+    const limit = usage.teleprompter_scripts_limit;
+    const pct = Math.round((used / limit) * 100);
+    const color = pct >= 100 ? 'var(--danger)' : pct >= 70 ? 'var(--warning)' : 'var(--success)';
+    tpBanner.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--text-muted);display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <span>📝 Roteiros salvos: <strong style="color:${color}">${used}/${limit}</strong></span>
+        ${pct >= 100 ? '<button class="btn btn-primary btn-sm" onclick="showUpgradeModal()">Upgrade Pro</button>' : ''}
+      </div>`;
+  }
 }
 
 // ── Register ──────────────────────────────────────────────────────────────────
@@ -145,7 +179,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     toast('Conta criada! Conecte seu Instagram.', 'success');
     showApp();
     navigate('page-dashboard');
-    updatePlanUI(res.plan);
+    updatePlanUI(res.plan, {});
     showIgModal();
   } else {
     toast(res.message || 'Erro ao criar conta', 'error');
@@ -174,7 +208,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     _currentUser = { id: res.user_id, plan: res.plan, name: res.name };
     showApp();
     navigate('page-dashboard');
-    updatePlanUI(res.plan);
+    updatePlanUI(res.plan, {});
 
     const igStatus = await api('GET', '/api/auth/status');
     if (!igStatus.logged_in) {
@@ -259,7 +293,7 @@ async function init() {
   _currentUser = me;
   showApp();
   navigate('page-dashboard');
-  updatePlanUI(me.plan);
+  updatePlanUI(me.plan, me.usage);
 
   const igStatus = await api('GET', '/api/auth/status');
   if (!igStatus.logged_in) {
@@ -269,7 +303,7 @@ async function init() {
   }
 }
 
-// ── Pro-gated nav items ───────────────────────────────────────────────────────
+// ── Pro-gated nav items (follow, unfollow, settings) ─────────────────────────
 document.querySelectorAll('.pro-feature').forEach(item => {
   item.addEventListener('click', (e) => {
     if (item.classList.contains('nav-locked')) {
@@ -281,8 +315,17 @@ document.querySelectorAll('.pro-feature').forEach(item => {
     const page = item.dataset.page;
     navigate(page);
     if (page === 'page-settings') loadSettings();
-    if (page === 'page-teleprompter') loadScripts();
   });
+});
+
+// ── Free nav items (content + teleprompter — available with limits) ───────────
+document.querySelector('[data-page="page-content"]').addEventListener('click', () => {
+  navigate('page-content');
+});
+
+document.querySelector('[data-page="page-teleprompter"]').addEventListener('click', () => {
+  navigate('page-teleprompter');
+  loadScripts();
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -417,7 +460,15 @@ async function saveIdea(idea) {
     title: idea.title, description: idea.description,
     hashtags: idea.hashtags, content_type: idea.content_type,
   });
+  if (res.detail && res.detail.includes('Limite')) {
+    toast(res.detail, 'warning');
+    showUpgradeModal();
+    return;
+  }
   toast(res.message, res.success ? 'success' : 'error');
+  // Refresh usage
+  const me = await api('GET', '/api/app/me');
+  if (me.usage) _renderUsageBanners(me.usage);
 }
 
 async function loadSavedIdeas() {
@@ -457,11 +508,19 @@ document.getElementById('script-save-btn').addEventListener('click', async () =>
   const font_size = parseInt(document.getElementById('script-fontsize').value);
   if (!title || !content) { toast('Preencha título e roteiro', 'warning'); return; }
   const res = await api('POST', '/api/teleprompter/scripts', { title, content, speed, font_size });
+  if (res.detail && res.detail.includes('Limite')) {
+    toast(res.detail, 'warning');
+    showUpgradeModal();
+    return;
+  }
   toast(res.message, res.success ? 'success' : 'error');
   if (res.success) {
     document.getElementById('script-title').value = '';
     document.getElementById('script-content').value = '';
     loadScripts();
+    // Refresh usage
+    const me = await api('GET', '/api/app/me');
+    if (me.usage) _renderUsageBanners(me.usage);
   }
 });
 

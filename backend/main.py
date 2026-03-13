@@ -1,11 +1,12 @@
 import os
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, Depends, Header, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 
-from .db.database import init_db, get_setting, set_setting
+from .db.database import init_db, get_setting, set_setting, get_connection
 from .modules import instagram_client, follower, unfollower, analytics, content, teleprompter
 from .modules import app_auth, asaas
 
@@ -58,9 +59,14 @@ PLANS = {
     "free": {
         "name": "Gratuito",
         "price": 0,
-        "description": "Dashboard e analytics básicos",
-        "features": ["Dashboard", "Visualizar métricas do perfil"],
-        "locked": ["Auto-Follow", "Auto-Unfollow", "Ideias de Conteúdo", "Teleprompter", "Configurações"],
+        "description": "Dashboard + acesso limitado a conteúdo e teleprompter",
+        "features": [
+            "Dashboard e analytics",
+            "Gerar ideias de conteúdo (ilimitado)",
+            "Salvar até 10 ideias/mês",
+            "Até 3 roteiros no Teleprompter",
+        ],
+        "locked": ["Auto-Follow", "Auto-Unfollow", "Configurações avançadas"],
     },
     "pro": {
         "name": "Pro",
@@ -71,12 +77,36 @@ PLANS = {
             "Auto-Follow ilimitado",
             "Auto-Unfollow ilimitado",
             "Ideias de conteúdo ilimitadas",
-            "Teleprompter",
+            "Roteiros ilimitados no Teleprompter",
             "Configurações avançadas",
             "Suporte prioritário",
         ],
     },
 }
+
+# ── Free plan limits ──────────────────────────────────────────────────────────
+FREE_CONTENT_SAVES_PER_MONTH = 10
+FREE_TELEPROMPTER_SCRIPTS = 3
+
+
+def _count_content_saves_this_month(app_user_id: int) -> int:
+    month_prefix = datetime.utcnow().strftime("%Y-%m") + "%"
+    conn = get_connection()
+    count = conn.execute(
+        "SELECT COUNT(*) as c FROM content_ideas WHERE app_user_id=? AND created_at LIKE ?",
+        (app_user_id, month_prefix)
+    ).fetchone()["c"]
+    conn.close()
+    return count
+
+
+def _count_teleprompter_scripts(app_user_id: int) -> int:
+    conn = get_connection()
+    count = conn.execute(
+        "SELECT COUNT(*) as c FROM teleprompter_scripts WHERE app_user_id=?", (app_user_id,)
+    ).fetchone()["c"]
+    conn.close()
+    return count
 
 
 # ── App-level auth (register/login) ──────────────────────────────────────────
@@ -103,12 +133,25 @@ def app_login(body: AppLoginBody):
 
 @app.get("/api/app/me")
 def me(current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    plan = current_user["plan"]
+    usage = {}
+    if plan == "free":
+        saves = _count_content_saves_this_month(uid)
+        scripts = _count_teleprompter_scripts(uid)
+        usage = {
+            "content_saves_this_month": saves,
+            "content_saves_limit": FREE_CONTENT_SAVES_PER_MONTH,
+            "teleprompter_scripts": scripts,
+            "teleprompter_scripts_limit": FREE_TELEPROMPTER_SCRIPTS,
+        }
     return {
-        "id": current_user["id"],
+        "id": uid,
         "email": current_user["email"],
         "name": current_user["name"],
-        "plan": current_user["plan"],
-        "plan_info": PLANS.get(current_user["plan"], PLANS["free"]),
+        "plan": plan,
+        "plan_info": PLANS.get(plan, PLANS["free"]),
+        "usage": usage,
     }
 
 
@@ -247,7 +290,7 @@ def follow_stats(current_user: dict = Depends(get_current_user)):
     return analytics.get_follow_stats(app_user_id=current_user["id"])
 
 
-# ── Content (Pro only) ────────────────────────────────────────────────────────
+# ── Content (free with limits, pro unlimited) ─────────────────────────────────
 class ContentBody(BaseModel):
     topic: str
     niche: str = ""
@@ -255,7 +298,7 @@ class ContentBody(BaseModel):
 
 
 @app.post("/api/content/generate")
-def generate(body: ContentBody, current_user: dict = Depends(require_pro)):
+def generate(body: ContentBody, current_user: dict = Depends(get_current_user)):
     return content.generate_ideas(body.topic, body.niche, body.count)
 
 
@@ -267,21 +310,29 @@ class SaveIdeaBody(BaseModel):
 
 
 @app.post("/api/content/save")
-def save_idea(body: SaveIdeaBody, current_user: dict = Depends(require_pro)):
-    return content.save_idea(body.title, body.description, body.hashtags, body.content_type, app_user_id=current_user["id"])
+def save_idea(body: SaveIdeaBody, current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    if current_user["plan"] != "pro":
+        used = _count_content_saves_this_month(uid)
+        if used >= FREE_CONTENT_SAVES_PER_MONTH:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Limite de {FREE_CONTENT_SAVES_PER_MONTH} ideias salvas por mês atingido. Faça upgrade para o plano Pro."
+            )
+    return content.save_idea(body.title, body.description, body.hashtags, body.content_type, app_user_id=uid)
 
 
 @app.get("/api/content/ideas")
-def get_ideas(current_user: dict = Depends(require_pro)):
+def get_ideas(current_user: dict = Depends(get_current_user)):
     return content.get_saved_ideas(app_user_id=current_user["id"])
 
 
 @app.patch("/api/content/ideas/{idea_id}")
-def update_idea(idea_id: int, status: str, current_user: dict = Depends(require_pro)):
+def update_idea(idea_id: int, status: str, current_user: dict = Depends(get_current_user)):
     return content.update_idea_status(idea_id, status, app_user_id=current_user["id"])
 
 
-# ── Teleprompter (Pro only) ───────────────────────────────────────────────────
+# ── Teleprompter (free with limits, pro unlimited) ────────────────────────────
 class ScriptBody(BaseModel):
     title: str
     content: str
@@ -290,17 +341,25 @@ class ScriptBody(BaseModel):
 
 
 @app.post("/api/teleprompter/scripts")
-def create_script(body: ScriptBody, current_user: dict = Depends(require_pro)):
-    return teleprompter.save_script(body.title, body.content, body.speed, body.font_size, app_user_id=current_user["id"])
+def create_script(body: ScriptBody, current_user: dict = Depends(get_current_user)):
+    uid = current_user["id"]
+    if current_user["plan"] != "pro":
+        count = _count_teleprompter_scripts(uid)
+        if count >= FREE_TELEPROMPTER_SCRIPTS:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Limite de {FREE_TELEPROMPTER_SCRIPTS} roteiros atingido. Faça upgrade para o plano Pro."
+            )
+    return teleprompter.save_script(body.title, body.content, body.speed, body.font_size, app_user_id=uid)
 
 
 @app.get("/api/teleprompter/scripts")
-def list_scripts(current_user: dict = Depends(require_pro)):
+def list_scripts(current_user: dict = Depends(get_current_user)):
     return teleprompter.get_scripts(app_user_id=current_user["id"])
 
 
 @app.get("/api/teleprompter/scripts/{script_id}")
-def get_script(script_id: int, current_user: dict = Depends(require_pro)):
+def get_script(script_id: int, current_user: dict = Depends(get_current_user)):
     s = teleprompter.get_script(script_id, app_user_id=current_user["id"])
     if not s:
         raise HTTPException(status_code=404, detail="Roteiro não encontrado")
@@ -308,12 +367,12 @@ def get_script(script_id: int, current_user: dict = Depends(require_pro)):
 
 
 @app.put("/api/teleprompter/scripts/{script_id}")
-def update_script(script_id: int, body: ScriptBody, current_user: dict = Depends(require_pro)):
+def update_script(script_id: int, body: ScriptBody, current_user: dict = Depends(get_current_user)):
     return teleprompter.update_script(script_id, body.title, body.content, body.speed, body.font_size, app_user_id=current_user["id"])
 
 
 @app.delete("/api/teleprompter/scripts/{script_id}")
-def delete_script(script_id: int, current_user: dict = Depends(require_pro)):
+def delete_script(script_id: int, current_user: dict = Depends(get_current_user)):
     return teleprompter.delete_script(script_id, app_user_id=current_user["id"])
 
 

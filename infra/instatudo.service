@@ -1,0 +1,22 @@
+[Unit]
+Description=InstaTudo — Instagram Automation SaaS
+After=network.target
+
+[Service]
+Type=simple
+User=instatudo
+Group=instatudo
+WorkingDirectory=/opt/instatudo
+EnvironmentFile=/opt/instatudo/.env
+ExecStart=/opt/instatudo/.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Segurança
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

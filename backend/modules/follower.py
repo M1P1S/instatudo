@@ -66,7 +66,10 @@ def start_auto_follow(target_username: str, source: str = "followers"):
         amount = int(get_setting("follow_amount") or 200)
 
         try:
-            target_id = cl.user_id_from_username(target_username)
+            # /usernameinfo/ endpoint foi desativado pelo Instagram.
+            # Usa web_profile_info que ainda funciona.
+            resp = cl.private_request(f"users/web_profile_info/?username={target_username}")
+            target_id = int(resp["data"]["user"]["id"])
 
             if source == "followers":
                 users = cl.user_followers(target_id, amount=amount)

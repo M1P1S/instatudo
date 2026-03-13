@@ -38,7 +38,7 @@ call .venv\Scripts\activate.bat
 echo Atualizando pip...
 python -m pip install --upgrade pip --quiet
 echo Instalando dependencias...
-pip install -r requirements.txt --quiet
+pip install -r requirements.txt --quiet --prefer-binary
 
 :: Inicia o servidor
 echo.

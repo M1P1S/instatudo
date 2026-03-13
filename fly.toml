@@ -1,0 +1,27 @@
+# fly.toml — Configuração do InstaTudo no Fly.io
+# Documentação: https://fly.io/docs/reference/configuration/
+
+app = "instatudo"
+primary_region = "gru"   # São Paulo — menor latência para usuários BR
+
+[build]
+
+[env]
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = false   # mantém o app sempre ligado (automações Instagram)
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "512mb"             # mínimo recomendado para instagrapi + Pillow
+  cpu_kind = "shared"
+  cpus = 1
+
+# Volume persistente para o banco de dados SQLite e sessões Instagram
+[[mounts]]
+  source = "instatudo_data"
+  destination = "/app/backend/db"

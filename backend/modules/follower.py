@@ -45,6 +45,8 @@ def start_auto_follow(target_username: str, source: str = "followers"):
     """
     global _follow_thread, _follow_running, _follow_status
 
+    target_username = target_username.lstrip('@').strip()
+
     if _follow_running:
         return {"success": False, "message": "Auto-follow já está em execução."}
 

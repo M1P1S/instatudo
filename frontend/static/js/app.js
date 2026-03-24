@@ -661,6 +661,10 @@ document.querySelectorAll('.tab').forEach(tab => {
     document.getElementById(target).classList.remove('hidden');
     if (target === 'tab-saved') loadSavedIdeas();
     if (target === 'tab-scripts-list') loadScripts();
+    if (['tab-cust-all','tab-cust-prospect','tab-cust-contacted','tab-cust-interested','tab-cust-converted'].includes(target)) {
+      const statusMap = { 'tab-cust-all': null, 'tab-cust-prospect': 'prospect', 'tab-cust-contacted': 'contacted', 'tab-cust-interested': 'interested', 'tab-cust-converted': 'converted' };
+      loadCustomers(statusMap[target]);
+    }
   });
 });
 
@@ -676,6 +680,223 @@ document.getElementById('script-speed')?.addEventListener('input', (e) => {
 });
 document.getElementById('script-fontsize')?.addEventListener('input', (e) => {
   document.getElementById('fontsize-label').textContent = e.target.value + 'px';
+});
+
+// ── Customers ─────────────────────────────────────────────────────────────────
+let _allCustomers = [];
+let _editingCustomerId = null;
+
+const STATUS_LABELS = {
+  prospect: { label: 'Prospect', color: '#6366f1' },
+  contacted: { label: 'Contactado', color: '#f59e0b' },
+  interested: { label: 'Interessado', color: '#22c55e' },
+  converted: { label: 'Convertido', color: '#10b981' },
+  lost: { label: 'Perdido', color: '#ef4444' },
+};
+
+function fmtNum(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n || 0);
+}
+
+function renderCustomerTable(customers, wrapperId) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  if (!customers.length) {
+    wrap.innerHTML = '<div class="text-muted" style="padding:24px;">Nenhum cliente nesta categoria.</div>';
+    return;
+  }
+  wrap.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);background:var(--surface2);">
+          <th style="padding:10px 14px;text-align:left;color:var(--text-muted);font-weight:600;">Perfil</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--text-muted);font-weight:600;">Seguidores</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--text-muted);font-weight:600;">Posts</th>
+          <th style="padding:10px 14px;text-align:left;color:var(--text-muted);font-weight:600;">Hashtag</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--text-muted);font-weight:600;">Status</th>
+          <th style="padding:10px 14px;text-align:center;color:var(--text-muted);font-weight:600;">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${customers.map(c => {
+          const st = STATUS_LABELS[c.status] || STATUS_LABELS.prospect;
+          return `
+          <tr style="border-bottom:1px solid var(--border);" class="customer-row" data-id="${c.id}">
+            <td style="padding:10px 14px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                ${c.profile_pic ? `<img src="${c.profile_pic}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />` : '<div style="width:36px;height:36px;border-radius:50%;background:var(--surface2);"></div>'}
+                <div>
+                  <div style="font-weight:600;">@${c.username}</div>
+                  ${c.full_name ? `<div style="font-size:11px;color:var(--text-muted);">${c.full_name}</div>` : ''}
+                </div>
+              </div>
+            </td>
+            <td style="padding:10px 14px;text-align:center;">${fmtNum(c.followers)}</td>
+            <td style="padding:10px 14px;text-align:center;">${fmtNum(c.posts)}</td>
+            <td style="padding:10px 14px;font-size:11px;color:var(--text-muted);">${c.hashtag_source || '—'}</td>
+            <td style="padding:10px 14px;text-align:center;">
+              <span style="background:${st.color}22;color:${st.color};padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;">${st.label}</span>
+            </td>
+            <td style="padding:10px 14px;text-align:center;">
+              <button class="btn btn-outline btn-sm" onclick="openCustomerDetail(${c.id})">✏️</button>
+              <a href="${c.profile_url}" target="_blank" class="btn btn-outline btn-sm" style="text-decoration:none;">↗</a>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
+async function loadCustomers(status = null) {
+  const url = status ? `/api/customers?status=${status}` : '/api/customers';
+  const customers = await api('GET', url);
+  if (!Array.isArray(customers)) return;
+
+  _allCustomers = status ? _allCustomers : customers;
+
+  const wrapMap = {
+    null: 'customer-table-wrap',
+    prospect: 'customer-table-wrap-prospect',
+    contacted: 'customer-table-wrap-contacted',
+    interested: 'customer-table-wrap-interested',
+    converted: 'customer-table-wrap-converted',
+  };
+  renderCustomerTable(customers, wrapMap[status]);
+
+  if (!status) {
+    // Update stats
+    const all = customers;
+    document.getElementById('cust-total').textContent = all.length;
+    document.getElementById('cust-contacted').textContent = all.filter(c => c.status === 'contacted').length;
+    document.getElementById('cust-interested').textContent = all.filter(c => c.status === 'interested').length;
+    document.getElementById('cust-converted').textContent = all.filter(c => c.status === 'converted').length;
+  }
+}
+
+function openCustomerSearchModal() {
+  document.getElementById('customer-search-modal').classList.remove('hidden');
+  document.getElementById('search-progress').classList.add('hidden');
+  document.getElementById('btn-run-search').disabled = false;
+}
+
+function closeCustomerSearchModal() {
+  document.getElementById('customer-search-modal').classList.add('hidden');
+}
+
+document.getElementById('btn-open-search-modal')?.addEventListener('click', openCustomerSearchModal);
+
+document.getElementById('customer-search-modal')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeCustomerSearchModal();
+});
+
+document.getElementById('btn-run-search')?.addEventListener('click', async () => {
+  const raw = document.getElementById('search-hashtags').value.trim();
+  const limit = parseInt(document.getElementById('search-limit').value) || 50;
+  const hashtags = raw ? raw.split('\n').map(h => h.trim().replace(/^#/, '')).filter(Boolean) : [];
+
+  const btn = document.getElementById('btn-run-search');
+  const progress = document.getElementById('search-progress');
+  const progressText = document.getElementById('search-progress-text');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Buscando...';
+  progress.classList.remove('hidden');
+  progressText.textContent = '🔄 Conectando ao Apify e iniciando scraping do Instagram...';
+
+  const res = await api('POST', '/api/customers/search', { hashtags, limit });
+
+  btn.disabled = false;
+  btn.textContent = '🚀 Buscar agora';
+
+  if (res.success) {
+    progressText.textContent = `✅ Busca concluída! ${res.total_found} perfis encontrados, ${res.new_saved} novos salvos.`;
+    setTimeout(() => {
+      closeCustomerSearchModal();
+      loadCustomers();
+      toast(`${res.new_saved} novos clientes adicionados!`, 'success');
+    }, 2000);
+  } else {
+    progressText.textContent = `❌ Erro: ${res.detail || 'Falha na busca.'}`;
+    toast(res.detail || 'Erro na busca', 'error');
+  }
+});
+
+function openCustomerDetail(id) {
+  const c = _allCustomers.find(x => x.id === id);
+  if (!c) return;
+  _editingCustomerId = id;
+
+  document.getElementById('cust-detail-name').textContent = `@${c.username}`;
+  document.getElementById('cust-detail-pic').src = c.profile_pic || '';
+  document.getElementById('cust-detail-link').href = c.profile_url;
+  document.getElementById('cust-detail-source').textContent = c.hashtag_source || '';
+  document.getElementById('cust-detail-followers').textContent = fmtNum(c.followers);
+  document.getElementById('cust-detail-following').textContent = fmtNum(c.following);
+  document.getElementById('cust-detail-posts').textContent = fmtNum(c.posts);
+  document.getElementById('cust-detail-status').value = c.status || 'prospect';
+  document.getElementById('cust-detail-notes').value = c.notes || '';
+
+  document.getElementById('customer-detail-modal').classList.remove('hidden');
+}
+
+function closeCustomerDetailModal() {
+  document.getElementById('customer-detail-modal').classList.add('hidden');
+  _editingCustomerId = null;
+}
+
+document.getElementById('customer-detail-modal')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeCustomerDetailModal();
+});
+
+document.getElementById('btn-save-customer')?.addEventListener('click', async () => {
+  if (!_editingCustomerId) return;
+  const status = document.getElementById('cust-detail-status').value;
+  const notes = document.getElementById('cust-detail-notes').value;
+  const res = await api('PATCH', `/api/customers/${_editingCustomerId}`, { status, notes });
+  if (res.success) {
+    toast('Cliente atualizado!', 'success');
+    closeCustomerDetailModal();
+    loadCustomers();
+  } else {
+    toast(res.detail || 'Erro ao salvar', 'error');
+  }
+});
+
+document.getElementById('btn-delete-customer')?.addEventListener('click', async () => {
+  if (!_editingCustomerId) return;
+  if (!confirm('Remover este cliente da lista?')) return;
+  const res = await api('DELETE', `/api/customers/${_editingCustomerId}`);
+  if (res.success) {
+    toast('Cliente removido.', 'info');
+    closeCustomerDetailModal();
+    loadCustomers();
+  } else {
+    toast(res.detail || 'Erro ao remover', 'error');
+  }
+});
+
+document.getElementById('btn-export-customers')?.addEventListener('click', () => {
+  const tok = getToken();
+  const a = document.createElement('a');
+  a.href = '/api/customers/export';
+  a.download = 'clientes_papelaria.csv';
+  // Trigger fetch with auth header and create blob URL
+  fetch('/api/customers/export', { headers: { 'Authorization': `Bearer ${tok}` } })
+    .then(r => r.blob())
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+});
+
+// Load customers when navigating to the page
+document.querySelector('[data-page="page-customers"]')?.addEventListener('click', () => {
+  navigate('page-customers');
+  loadCustomers();
 });
 
 // ── Init ──────────────────────────────────────────────────────────────────────

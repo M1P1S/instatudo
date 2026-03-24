@@ -151,6 +151,9 @@
     <button class="nav-item" data-page="page-teleprompter">
       <span class="nav-icon">🎬</span><span>Teleprompter</span>
     </button>
+    <button class="nav-item pro-feature" data-page="page-customers">
+      <span class="nav-icon">👥</span><span>Clientes</span>
+    </button>
     <button class="nav-item pro-feature" data-page="page-settings">
       <span class="nav-icon">⚙️</span><span>Configurações</span>
     </button>
@@ -357,6 +360,75 @@
       </div>
     </div>
 
+    <!-- ── CUSTOMERS ── -->
+    <div id="page-customers" class="page">
+      <div class="flex justify-between items-center" style="margin-bottom:24px;">
+        <h1 class="page-title" style="margin:0">👥 Lista de Clientes</h1>
+        <div class="flex gap-8">
+          <button id="btn-export-customers" class="btn btn-outline btn-sm">📥 Exportar CSV</button>
+          <button id="btn-open-search-modal" class="btn btn-primary btn-sm">🔍 Buscar clientes</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="stat-card">
+          <div class="stat-value" id="cust-total">—</div>
+          <div class="stat-label">Total de prospects</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="cust-contacted">—</div>
+          <div class="stat-label">Contactados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="cust-interested">—</div>
+          <div class="stat-label">Interessados</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="cust-converted">—</div>
+          <div class="stat-label">Convertidos</div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="tabs" style="margin-bottom:16px;">
+        <div class="tab active" data-group="cust" data-tab="tab-cust-all">Todos</div>
+        <div class="tab" data-group="cust" data-tab="tab-cust-prospect">Prospects</div>
+        <div class="tab" data-group="cust" data-tab="tab-cust-contacted">Contactados</div>
+        <div class="tab" data-group="cust" data-tab="tab-cust-interested">Interessados</div>
+        <div class="tab" data-group="cust" data-tab="tab-cust-converted">Convertidos</div>
+      </div>
+
+      <!-- Table -->
+      <div id="tab-cust-all" class="tab-pane" data-group="cust">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="customer-table-wrap" style="overflow-x:auto;">
+            <div class="text-muted" style="padding:24px;">Nenhum cliente encontrado. Clique em "Buscar clientes" para começar.</div>
+          </div>
+        </div>
+      </div>
+      <div id="tab-cust-prospect" class="tab-pane hidden" data-group="cust">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="customer-table-wrap-prospect" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+      <div id="tab-cust-contacted" class="tab-pane hidden" data-group="cust">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="customer-table-wrap-contacted" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+      <div id="tab-cust-interested" class="tab-pane hidden" data-group="cust">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="customer-table-wrap-interested" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+      <div id="tab-cust-converted" class="tab-pane hidden" data-group="cust">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div id="customer-table-wrap-converted" style="overflow-x:auto;"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- ── SETTINGS ── -->
     <div id="page-settings" class="page">
       <h1 class="page-title">Configurações</h1>
@@ -434,6 +506,82 @@
     </div>
 
   </main>
+</div>
+
+<!-- ══════════════════ CUSTOMER SEARCH MODAL ══════════════════ -->
+<div id="customer-search-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:520px;">
+    <div class="modal-title">🔍 Buscar Clientes via Apify</div>
+    <p class="text-muted" style="margin-bottom:16px;">
+      Pesquise no Instagram por hashtags de papelaria e personalizados para encontrar potenciais clientes.
+    </p>
+    <div class="form-group">
+      <label class="form-label">Hashtags (uma por linha, sem #)</label>
+      <textarea id="search-hashtags" class="form-textarea" style="min-height:120px;"
+        placeholder="papelariacriativa&#10;papelariaonline&#10;convitepersonalizado&#10;kitescolar&#10;lembrancapersonalizada"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Máximo de perfis a buscar</label>
+      <input id="search-limit" class="form-input" type="number" value="50" min="10" max="200" />
+    </div>
+    <div id="search-progress" class="hidden" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+      <span id="search-progress-text">Iniciando busca no Apify...</span>
+    </div>
+    <div class="flex gap-8">
+      <button id="btn-run-search" class="btn btn-primary">🚀 Buscar agora</button>
+      <button onclick="closeCustomerSearchModal()" class="btn btn-outline">Cancelar</button>
+    </div>
+    <p style="font-size:11px;color:var(--text-muted);margin-top:12px;">
+      A busca pode levar alguns minutos dependendo das hashtags escolhidas.
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════ CUSTOMER DETAIL MODAL ══════════════════ -->
+<div id="customer-detail-modal" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-title" id="cust-detail-name">Cliente</div>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px;">
+      <img id="cust-detail-pic" src="" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:var(--surface2);" onerror="this.style.display='none'" />
+      <div>
+        <a id="cust-detail-link" href="#" target="_blank" class="btn btn-outline btn-sm" style="margin-bottom:6px;">Ver perfil no Instagram</a>
+        <div style="font-size:12px;color:var(--text-muted);" id="cust-detail-source"></div>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-bottom:16px;">
+      <div class="stat-card" style="padding:10px;text-align:center;">
+        <div class="stat-value" id="cust-detail-followers" style="font-size:18px;">—</div>
+        <div class="stat-label">Seguidores</div>
+      </div>
+      <div class="stat-card" style="padding:10px;text-align:center;">
+        <div class="stat-value" id="cust-detail-following" style="font-size:18px;">—</div>
+        <div class="stat-label">Seguindo</div>
+      </div>
+      <div class="stat-card" style="padding:10px;text-align:center;">
+        <div class="stat-value" id="cust-detail-posts" style="font-size:18px;">—</div>
+        <div class="stat-label">Posts</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <select id="cust-detail-status" class="form-select">
+        <option value="prospect">Prospect</option>
+        <option value="contacted">Contactado</option>
+        <option value="interested">Interessado</option>
+        <option value="converted">Convertido</option>
+        <option value="lost">Perdido</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Notas</label>
+      <textarea id="cust-detail-notes" class="form-textarea" placeholder="Observações sobre este cliente..." style="min-height:80px;"></textarea>
+    </div>
+    <div class="flex gap-8">
+      <button id="btn-save-customer" class="btn btn-primary">💾 Salvar</button>
+      <button id="btn-delete-customer" class="btn btn-danger">🗑 Remover</button>
+      <button onclick="closeCustomerDetailModal()" class="btn btn-outline">Fechar</button>
+    </div>
+  </div>
 </div>
 
 <script src="/static/js/app.js"></script>

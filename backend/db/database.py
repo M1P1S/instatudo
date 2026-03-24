@@ -80,6 +80,26 @@ def init_db():
             created_at TEXT NOT NULL
         );
 
+        -- ── Customer list (papelaria personalizada prospects) ────────────────
+        CREATE TABLE IF NOT EXISTS customer_list (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_user_id INTEGER NOT NULL DEFAULT 0,
+            username TEXT NOT NULL,
+            full_name TEXT DEFAULT '',
+            bio TEXT DEFAULT '',
+            followers INTEGER DEFAULT 0,
+            following INTEGER DEFAULT 0,
+            posts INTEGER DEFAULT 0,
+            profile_url TEXT DEFAULT '',
+            profile_pic TEXT DEFAULT '',
+            hashtag_source TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            status TEXT DEFAULT 'prospect',
+            created_at TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_customer_list_username
+            ON customer_list (app_user_id, username);
+
         -- ── Per-user settings (app_user_id=0 = global defaults) ──────────────
         CREATE TABLE IF NOT EXISTS app_settings (
             app_user_id INTEGER NOT NULL DEFAULT 0,

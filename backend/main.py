@@ -12,7 +12,7 @@ load_dotenv()
 
 from .db.database import init_db, get_setting, set_setting, get_connection
 from .modules import instagram_client, follower, unfollower, analytics, content, teleprompter
-from .modules import app_auth, asaas
+from .modules import app_auth, asaas, customer_list
 
 app = FastAPI(title="InstaTudo", version="2.0.0")
 
@@ -378,6 +378,73 @@ def update_script(script_id: int, body: ScriptBody, current_user: dict = Depends
 @app.delete("/api/teleprompter/scripts/{script_id}")
 def delete_script(script_id: int, current_user: dict = Depends(get_current_user)):
     return teleprompter.delete_script(script_id, app_user_id=current_user["id"])
+
+
+# ── Customer List (papelaria personalizada — Pro only) ────────────────────────
+class CustomerSearchBody(BaseModel):
+    hashtags: list = []
+    limit: int = 50
+
+
+@app.post("/api/customers/search")
+def customers_search(body: CustomerSearchBody, current_user: dict = Depends(require_pro)):
+    try:
+        result = customer_list.search_customers(
+            hashtags=body.hashtags or None,
+            limit=min(body.limit, 200),
+        )
+        saved = customer_list.save_customers(result["customers"], app_user_id=current_user["id"])
+        return {
+            "success": True,
+            "run_id": result["run_id"],
+            "hashtags_searched": result["hashtags_searched"],
+            "total_found": result["total_found"],
+            "new_saved": saved,
+            "customers": result["customers"],
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro na busca: {str(e)}")
+
+
+@app.get("/api/customers")
+def customers_list(status: Optional[str] = None, current_user: dict = Depends(require_pro)):
+    return customer_list.get_customers(app_user_id=current_user["id"], status=status)
+
+
+class CustomerUpdateBody(BaseModel):
+    status: str = "prospect"
+    notes: str = ""
+
+
+@app.patch("/api/customers/{customer_id}")
+def customers_update(customer_id: int, body: CustomerUpdateBody, current_user: dict = Depends(require_pro)):
+    ok = customer_list.update_customer_status(
+        customer_id, body.status, body.notes, app_user_id=current_user["id"]
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    return {"success": True}
+
+
+@app.delete("/api/customers/{customer_id}")
+def customers_delete(customer_id: int, current_user: dict = Depends(require_pro)):
+    ok = customer_list.delete_customer(customer_id, app_user_id=current_user["id"])
+    if not ok:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado.")
+    return {"success": True}
+
+
+@app.get("/api/customers/export")
+def customers_export(current_user: dict = Depends(require_pro)):
+    from fastapi.responses import PlainTextResponse
+    csv_data = customer_list.export_customers_csv(app_user_id=current_user["id"])
+    return PlainTextResponse(
+        content=csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=clientes_papelaria.csv"},
+    )
 
 
 # ── Settings (Pro only) ───────────────────────────────────────────────────────

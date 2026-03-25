@@ -387,9 +387,9 @@ class CustomerSearchBody(BaseModel):
 
 
 @app.post("/api/customers/search")
-def customers_search(body: CustomerSearchBody, current_user: dict = Depends(require_pro)):
+async def customers_search(body: CustomerSearchBody, current_user: dict = Depends(require_pro)):
     try:
-        result = customer_list.search_customers(
+        result = await customer_list.search_customers(
             hashtags=body.hashtags or None,
             limit=min(body.limit, 200),
         )

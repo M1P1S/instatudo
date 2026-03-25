@@ -7,7 +7,7 @@ que podem se tornar clientes.
 """
 
 import os
-import time
+import asyncio
 import httpx
 from datetime import datetime
 from ..db.database import get_connection
@@ -36,7 +36,7 @@ def _get_apify_token() -> str:
     return token
 
 
-def search_customers(hashtags: list = None, limit: int = 50) -> dict:
+async def search_customers(hashtags: list = None, limit: int = 50) -> dict:
     """
     Dispara o Apify Instagram Scraper para as hashtags indicadas,
     aguarda a conclusão e retorna lista de perfis prospectados.
@@ -56,45 +56,46 @@ def search_customers(hashtags: list = None, limit: int = 50) -> dict:
         "addParentData": False,
     }
 
-    # 1. Iniciar o run
-    resp = httpx.post(
-        f"{APIFY_BASE}/acts/apify~instagram-scraper/runs",
-        params={"token": token},
-        json=actor_input,
-        timeout=30,
-    )
-    resp.raise_for_status()
-    run_data = resp.json().get("data", {})
-    run_id = run_data.get("id")
-    if not run_id:
-        raise RuntimeError("Falha ao iniciar o run do Apify.")
-
-    # 2. Aguardar conclusão (máx. 5 min)
-    status = "RUNNING"
-    for _ in range(60):
-        time.sleep(5)
-        status_resp = httpx.get(
-            f"{APIFY_BASE}/actor-runs/{run_id}",
+    async with httpx.AsyncClient() as client:
+        # 1. Iniciar o run
+        resp = await client.post(
+            f"{APIFY_BASE}/acts/apify~instagram-scraper/runs",
             params={"token": token},
-            timeout=15,
+            json=actor_input,
+            timeout=30,
         )
-        status_resp.raise_for_status()
-        run_info = status_resp.json().get("data", {})
-        status = run_info.get("status", "RUNNING")
-        if status in ("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"):
-            break
+        resp.raise_for_status()
+        run_data = resp.json().get("data", {})
+        run_id = run_data.get("id")
+        if not run_id:
+            raise RuntimeError("Falha ao iniciar o run do Apify.")
 
-    if status != "SUCCEEDED":
-        raise RuntimeError(f"Run do Apify encerrou com status: {status}")
+        # 2. Aguardar conclusão (máx. 5 min)
+        status = "RUNNING"
+        for _ in range(60):
+            await asyncio.sleep(5)
+            status_resp = await client.get(
+                f"{APIFY_BASE}/actor-runs/{run_id}",
+                params={"token": token},
+                timeout=15,
+            )
+            status_resp.raise_for_status()
+            run_info = status_resp.json().get("data", {})
+            status = run_info.get("status", "RUNNING")
+            if status in ("SUCCEEDED", "FAILED", "ABORTED", "TIMED-OUT"):
+                break
 
-    # 3. Buscar itens do dataset
-    items_resp = httpx.get(
-        f"{APIFY_BASE}/actor-runs/{run_id}/dataset/items",
-        params={"token": token, "limit": limit * 3},
-        timeout=30,
-    )
-    items_resp.raise_for_status()
-    posts = items_resp.json()
+        if status != "SUCCEEDED":
+            raise RuntimeError(f"Run do Apify encerrou com status: {status}")
+
+        # 3. Buscar itens do dataset
+        items_resp = await client.get(
+            f"{APIFY_BASE}/actor-runs/{run_id}/dataset/items",
+            params={"token": token, "limit": limit * 3},
+            timeout=30,
+        )
+        items_resp.raise_for_status()
+        posts = items_resp.json()
 
     # 4. Extrair perfis únicos
     seen: set = set()
@@ -109,7 +110,6 @@ def search_customers(hashtags: list = None, limit: int = 50) -> dict:
             continue
         seen.add(username)
 
-        # Determinar de qual hashtag veio
         url = post.get("url", "")
         source_tag = ""
         for tag in tags:

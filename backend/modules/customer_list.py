@@ -36,13 +36,30 @@ def _get_apify_token() -> str:
     return token
 
 
-async def search_customers(hashtags: list = None, limit: int = 50) -> dict:
+def _slugify(text: str) -> str:
+    """Remove acentos e caracteres especiais para usar em hashtags."""
+    import unicodedata
+    nfkd = unicodedata.normalize("NFKD", text)
+    slug = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return "".join(c for c in slug if c.isalnum()).lower()
+
+
+async def search_customers(hashtags: list = None, limit: int = 50, region: str = None) -> dict:
     """
     Dispara o Apify Instagram Scraper para as hashtags indicadas,
     aguarda a conclusão e retorna lista de perfis prospectados.
+    Se 'region' for informado, adiciona hashtags regionais e filtra por bio/localização.
     """
     token = _get_apify_token()
-    tags = hashtags or DEFAULT_HASHTAGS[:5]
+    tags = list(hashtags) if hashtags else DEFAULT_HASHTAGS[:5]
+
+    # Adiciona variações regionais das hashtags
+    region_slug = _slugify(region) if region else ""
+    if region_slug:
+        regional_tags = []
+        for tag in tags[:5]:  # limita para não explodir o número de buscas
+            regional_tags.append(f"{tag}{region_slug}")
+        tags = regional_tags + tags  # regionais primeiro
 
     direct_urls = [
         f"https://www.instagram.com/explore/tags/{tag.lstrip('#')}/"
@@ -97,9 +114,27 @@ async def search_customers(hashtags: list = None, limit: int = 50) -> dict:
         items_resp.raise_for_status()
         posts = items_resp.json()
 
-    # 4. Extrair perfis únicos
+    # 4. Extrair perfis únicos, filtrando por região se informada
+    # Termos de busca para filtro regional (bio, localização)
+    region_terms = []
+    if region:
+        region_terms = [t.lower() for t in region.replace(",", " ").split() if len(t) > 1]
+        if region_slug:
+            region_terms.append(region_slug)
+
+    def _matches_region(post: dict) -> bool:
+        if not region_terms:
+            return True
+        bio = (post.get("biography") or "").lower()
+        location = (post.get("locationName") or post.get("location") or "").lower()
+        full_name = (post.get("ownerFullName") or "").lower()
+        text = f"{bio} {location} {full_name}"
+        return any(term in text for term in region_terms)
+
     seen: set = set()
     customers = []
+    region_filtered = []  # perfis sem match regional (adicionados no fim se faltar)
+
     for post in posts:
         username = (
             post.get("ownerUsername")
@@ -117,7 +152,7 @@ async def search_customers(hashtags: list = None, limit: int = 50) -> dict:
                 source_tag = f"#{tag}"
                 break
 
-        customers.append({
+        entry = {
             "username": username,
             "full_name": post.get("ownerFullName", "") or "",
             "bio": post.get("biography", "") or "",
@@ -127,10 +162,22 @@ async def search_customers(hashtags: list = None, limit: int = 50) -> dict:
             "profile_url": f"https://www.instagram.com/{username}/",
             "profile_pic": post.get("profilePicUrl", "") or "",
             "hashtag_source": source_tag or ", ".join(f"#{t}" for t in tags[:3]),
-        })
+        }
+
+        if _matches_region(post):
+            customers.append(entry)
+        else:
+            region_filtered.append(entry)
 
         if len(customers) >= limit:
             break
+
+    # Se filtro regional ativo mas poucos resultados, completa com o restante
+    if region_terms and len(customers) < limit:
+        for entry in region_filtered:
+            customers.append(entry)
+            if len(customers) >= limit:
+                break
 
     return {
         "run_id": run_id,

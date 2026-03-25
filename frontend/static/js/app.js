@@ -795,6 +795,7 @@ document.getElementById('btn-run-search')?.addEventListener('click', async () =>
   const raw = document.getElementById('search-hashtags').value.trim();
   const limit = parseInt(document.getElementById('search-limit').value) || 50;
   const hashtags = raw ? raw.split('\n').map(h => h.trim().replace(/^#/, '')).filter(Boolean) : [];
+  const region = document.getElementById('search-region').value.trim();
 
   const btn = document.getElementById('btn-run-search');
   const progress = document.getElementById('search-progress');
@@ -803,9 +804,10 @@ document.getElementById('btn-run-search')?.addEventListener('click', async () =>
   btn.disabled = true;
   btn.textContent = '⏳ Buscando...';
   progress.classList.remove('hidden');
-  progressText.textContent = '🔄 Conectando ao Apify e iniciando scraping do Instagram...';
+  const regionMsg = region ? ` na região "${region}"` : '';
+  progressText.textContent = `🔄 Conectando ao Apify e iniciando scraping do Instagram${regionMsg}...`;
 
-  const res = await api('POST', '/api/customers/search', { hashtags, limit });
+  const res = await api('POST', '/api/customers/search', { hashtags, limit, region: region || null });
 
   btn.disabled = false;
   btn.textContent = '🚀 Buscar agora';

@@ -384,6 +384,7 @@ def delete_script(script_id: int, current_user: dict = Depends(get_current_user)
 class CustomerSearchBody(BaseModel):
     hashtags: list = []
     limit: int = 50
+    region: Optional[str] = None
 
 
 @app.post("/api/customers/search")
@@ -392,6 +393,7 @@ async def customers_search(body: CustomerSearchBody, current_user: dict = Depend
         result = await customer_list.search_customers(
             hashtags=body.hashtags or None,
             limit=min(body.limit, 200),
+            region=body.region,
         )
         saved = customer_list.save_customers(result["customers"], app_user_id=current_user["id"])
         return {

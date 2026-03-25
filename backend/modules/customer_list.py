@@ -216,13 +216,19 @@ def delete_customer(customer_id: int, app_user_id: int) -> bool:
 
 
 def export_customers_csv(app_user_id: int) -> str:
-    """Retorna string CSV com todos os clientes do usuário."""
+    """Retorna string CSV com todos os clientes (separador ; para Excel PT-BR, BOM UTF-8)."""
     customers = get_customers(app_user_id)
-    lines = ["username,full_name,followers,following,posts,status,hashtag_source,profile_url,notes,created_at"]
+    sep = ";"
+
+    def esc(v):
+        return f'"{str(v).replace(chr(34), chr(39))}"'
+
+    lines = [sep.join([
+        "username", "full_name", "followers", "following", "posts",
+        "status", "hashtag_source", "profile_url", "notes", "created_at"
+    ])]
     for c in customers:
-        def esc(v):
-            return f'"{str(v).replace(chr(34), chr(39))}"'
-        lines.append(",".join([
+        lines.append(sep.join([
             esc(c["username"]),
             esc(c["full_name"]),
             str(c["followers"]),
@@ -234,4 +240,5 @@ def export_customers_csv(app_user_id: int) -> str:
             esc(c.get("notes", "")),
             esc(c["created_at"]),
         ]))
-    return "\n".join(lines)
+    # BOM UTF-8 para o Excel reconhecer acentos automaticamente
+    return "\ufeff" + "\n".join(lines)

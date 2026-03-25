@@ -442,7 +442,7 @@ def customers_export(current_user: dict = Depends(require_pro)):
     csv_data = customer_list.export_customers_csv(app_user_id=current_user["id"])
     return PlainTextResponse(
         content=csv_data,
-        media_type="text/csv",
+        media_type="text/csv; charset=utf-8-sig",
         headers={"Content-Disposition": "attachment; filename=clientes_papelaria.csv"},
     )
 

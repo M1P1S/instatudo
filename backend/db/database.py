@@ -80,6 +80,43 @@ def init_db():
             created_at TEXT NOT NULL
         );
 
+        -- ── Investment portfolio ───────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS investment_assets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_user_id INTEGER NOT NULL,
+            ticker TEXT NOT NULL,
+            name TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            sector TEXT DEFAULT '',
+            notes TEXT DEFAULT '',
+            manual_price REAL,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS portfolio_transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_user_id INTEGER NOT NULL,
+            asset_id INTEGER NOT NULL,
+            transaction_type TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            price REAL NOT NULL,
+            total_value REAL NOT NULL,
+            fees REAL DEFAULT 0,
+            transaction_date TEXT NOT NULL,
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS investment_dividends (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            app_user_id INTEGER NOT NULL,
+            asset_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            dividend_date TEXT NOT NULL,
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        );
+
         -- ── Per-user settings (app_user_id=0 = global defaults) ──────────────
         CREATE TABLE IF NOT EXISTS app_settings (
             app_user_id INTEGER NOT NULL DEFAULT 0,

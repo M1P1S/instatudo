@@ -678,6 +678,444 @@ document.getElementById('script-fontsize')?.addEventListener('input', (e) => {
   document.getElementById('fontsize-label').textContent = e.target.value + 'px';
 });
 
+// ── Investments nav ───────────────────────────────────────────────────────────
+document.querySelector('[data-page="page-investments"]').addEventListener('click', () => {
+  navigate('page-investments');
+  loadInvestments();
+});
+
+// ── Investment helpers ────────────────────────────────────────────────────────
+const INV_COLORS = {
+  acao:       '#818cf8',
+  fii:        '#4ade80',
+  crypto:     '#fbbf24',
+  renda_fixa: '#2dd4bf',
+  etf:        '#c084fc',
+  bdr:        '#f472b6',
+};
+const INV_TYPE_LABELS = {
+  acao: 'Ações', fii: 'FII', crypto: 'Cripto',
+  renda_fixa: 'Renda Fixa', etf: 'ETF', bdr: 'BDR',
+};
+
+function fmtBRL(v) {
+  if (v == null || isNaN(v)) return '—';
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+}
+function fmtPct(v) {
+  if (v == null || isNaN(v)) return '—';
+  const sign = v >= 0 ? '+' : '';
+  return `${sign}${v.toFixed(2)}%`;
+}
+function fmtQty(v) {
+  if (v == null || isNaN(v)) return '—';
+  return v % 1 === 0 ? v.toLocaleString('pt-BR') : v.toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+}
+
+let _invAssets = [];
+
+// ── Load / refresh full investments page ──────────────────────────────────────
+async function loadInvestments() {
+  const portfolio = await api('GET', '/api/investments/portfolio');
+  _invAssets = await api('GET', '/api/investments/assets');
+  if (!Array.isArray(_invAssets)) _invAssets = [];
+
+  // Summary cards
+  const s = portfolio.summary || {};
+  const pnl = s.total_pnl || 0;
+
+  document.getElementById('inv-total-invested').textContent = fmtBRL(s.total_invested);
+  document.getElementById('inv-total-current').textContent = fmtBRL(s.total_current);
+  document.getElementById('inv-total-dividends').textContent = fmtBRL(s.total_dividends);
+
+  const pnlEl = document.getElementById('inv-total-pnl');
+  pnlEl.textContent = fmtBRL(pnl);
+  pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'inv-pnl-pos' : 'inv-pnl-neg');
+
+  const pnlPct = document.getElementById('inv-pnl-pct');
+  pnlPct.textContent = fmtPct(s.total_pnl_pct);
+  pnlPct.className = 'stat-delta ' + (pnl >= 0 ? 'delta-up' : 'delta-down');
+
+  // Holdings table
+  renderHoldingsTable(portfolio.holdings || []);
+
+  // Allocation donut + by-type
+  renderAllocation(portfolio.by_type || {});
+}
+
+function renderHoldingsTable(holdings) {
+  const tbody = document.getElementById('inv-holdings-body');
+  if (!holdings.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="text-muted" style="text-align:center;padding:32px;">Nenhum ativo na carteira.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = holdings.map(h => {
+    const pnlClass = h.pnl >= 0 ? 'inv-pnl-pos' : 'inv-pnl-neg';
+    const chgClass = (h.change_pct || 0) >= 0 ? 'inv-change-pos' : 'inv-change-neg';
+    const typeClass = `inv-type-badge inv-type-${h.asset_type}`;
+    const priceDisplay = h.asset_type === 'renda_fixa'
+      ? `${fmtBRL(h.current_price)} <span style="font-size:10px;color:var(--text-muted)">(manual)</span>`
+      : `${fmtBRL(h.current_price)} <span class="${chgClass}">${fmtPct(h.change_pct)}</span>`;
+
+    const updateBtn = (h.asset_type === 'renda_fixa' || !h.change_pct)
+      ? `<button class="btn btn-outline btn-sm" onclick="openPriceModal(${h.asset_id}, ${h.current_price})" title="Atualizar valor">✏️</button>`
+      : '';
+
+    return `
+      <tr>
+        <td>
+          <div class="inv-ticker">${h.ticker}</div>
+          <div class="inv-ticker-name">${h.name}</div>
+        </td>
+        <td><span class="${typeClass}">${h.asset_type_label}</span></td>
+        <td>${fmtQty(h.quantity)}</td>
+        <td>${fmtBRL(h.avg_cost)}</td>
+        <td>${priceDisplay}</td>
+        <td>${fmtBRL(h.net_invested)}</td>
+        <td><strong>${fmtBRL(h.current_value)}</strong></td>
+        <td class="${pnlClass}">${fmtBRL(h.pnl)}<br><small>${fmtPct(h.pnl_pct)}</small></td>
+        <td>${fmtBRL(h.dividends_received)}</td>
+        <td>${h.dividend_yield > 0 ? fmtPct(h.dividend_yield) : '—'}</td>
+        <td style="white-space:nowrap;">
+          ${updateBtn}
+          <button class="btn btn-outline btn-sm" onclick="invAddTxForAsset(${h.asset_id})" title="Registrar transação">+</button>
+          <button class="btn btn-danger btn-sm" onclick="invDeleteAsset(${h.asset_id})" title="Remover ativo">🗑</button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function renderAllocation(byType) {
+  // Donut SVG
+  const svg = document.getElementById('inv-donut');
+  const legend = document.getElementById('inv-legend');
+  const byTypeTable = document.getElementById('inv-by-type-table');
+  if (!svg) return;
+
+  const cx = 100, cy = 100, r = 80, inner = 50;
+  const total = Object.values(byType).reduce((s, v) => s + (v.current || 0), 0);
+
+  let segments = '';
+  let legendHtml = '';
+  let byTypeHtml = '';
+  let startAngle = -Math.PI / 2;
+  const types = Object.entries(byType).sort((a, b) => b[1].current - a[1].current);
+
+  types.forEach(([type, info]) => {
+    const pct = total > 0 ? info.current / total : 0;
+    const angle = pct * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+
+    if (pct > 0 && types.length > 1) {
+      const x1 = cx + r * Math.cos(startAngle);
+      const y1 = cy + r * Math.sin(startAngle);
+      const x2 = cx + r * Math.cos(endAngle);
+      const y2 = cy + r * Math.sin(endAngle);
+      const xi1 = cx + inner * Math.cos(startAngle);
+      const yi1 = cy + inner * Math.sin(startAngle);
+      const xi2 = cx + inner * Math.cos(endAngle);
+      const yi2 = cy + inner * Math.sin(endAngle);
+      const large = angle > Math.PI ? 1 : 0;
+      const color = INV_COLORS[type] || '#888';
+
+      segments += `<path class="donut-segment" fill="${color}"
+        d="M ${xi1} ${yi1} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}
+           L ${xi2} ${yi2} A ${inner} ${inner} 0 ${large} 0 ${xi1} ${yi1} Z"
+        title="${INV_TYPE_LABELS[type]}: ${info.pct}%" />`;
+    } else if (pct > 0) {
+      // Single segment: full circle
+      const color = INV_COLORS[type] || '#888';
+      segments += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" class="donut-segment" />
+        <circle cx="${cx}" cy="${cy}" r="${inner}" fill="var(--surface)" />`;
+    }
+
+    startAngle = endAngle;
+
+    legendHtml += `
+      <div class="inv-legend-item">
+        <div class="inv-legend-dot" style="background:${INV_COLORS[type] || '#888'}"></div>
+        <span class="inv-legend-label">${info.label}</span>
+        <span class="inv-legend-pct">${info.pct}%</span>
+      </div>`;
+
+    const pnlType = info.current - info.invested;
+    const pnlClass = pnlType >= 0 ? 'inv-pnl-pos' : 'inv-pnl-neg';
+    byTypeHtml += `
+      <div class="inv-type-row">
+        <div>
+          <span class="inv-type-badge inv-type-${type}" style="margin-right:8px;">${info.label}</span>
+        </div>
+        <div style="text-align:right;">
+          <div><strong>${fmtBRL(info.current)}</strong></div>
+          <div class="${pnlClass}" style="font-size:11px;">${fmtBRL(pnlType)}</div>
+        </div>
+      </div>`;
+  });
+
+  if (!segments) {
+    svg.innerHTML = `<circle cx="100" cy="100" r="80" fill="var(--surface2)" />
+      <circle cx="100" cy="100" r="50" fill="var(--surface)" />
+      <text x="100" y="106" text-anchor="middle" fill="var(--text-muted)" font-size="12">Vazio</text>`;
+  } else {
+    svg.innerHTML = segments + `<circle cx="${cx}" cy="${cy}" r="${inner}" fill="var(--surface)" />`;
+  }
+
+  if (legend) legend.innerHTML = legendHtml || '<div class="text-muted">Sem dados</div>';
+  if (byTypeTable) byTypeTable.innerHTML = byTypeHtml || '<div class="text-muted">Sem dados</div>';
+}
+
+// ── Transactions tab ──────────────────────────────────────────────────────────
+async function loadInvTransactions() {
+  const txs = await api('GET', '/api/investments/transactions');
+  const tbody = document.getElementById('inv-tx-body');
+  if (!Array.isArray(txs) || !txs.length) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align:center;padding:32px;">Nenhuma transação.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = txs.map(t => `
+    <tr>
+      <td>${t.transaction_date}</td>
+      <td>
+        <div class="inv-ticker">${t.ticker}</div>
+        <div class="inv-ticker-name">${t.name}</div>
+      </td>
+      <td>
+        <span class="badge ${t.transaction_type === 'buy' ? 'badge-green' : 'badge-red'}">
+          ${t.transaction_type === 'buy' ? 'Compra' : 'Venda'}
+        </span>
+      </td>
+      <td>${fmtQty(t.quantity)}</td>
+      <td>${fmtBRL(t.price)}</td>
+      <td>${fmtBRL(t.fees)}</td>
+      <td><strong>${fmtBRL(t.total_value)}</strong></td>
+      <td style="font-size:12px;color:var(--text-muted);">${t.notes || '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="invDeleteTx(${t.id})">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function invDeleteTx(id) {
+  if (!confirm('Remover esta transação?')) return;
+  const res = await api('DELETE', `/api/investments/transactions/${id}`);
+  toast(res.message, 'info');
+  loadInvTransactions();
+  loadInvestments();
+}
+
+// ── Dividends tab ─────────────────────────────────────────────────────────────
+async function loadInvDividends() {
+  const divs = await api('GET', '/api/investments/dividends');
+  const tbody = document.getElementById('inv-div-body');
+  if (!Array.isArray(divs) || !divs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-muted" style="text-align:center;padding:32px;">Nenhum dividendo registrado.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = divs.map(d => `
+    <tr>
+      <td>${d.dividend_date}</td>
+      <td>
+        <div class="inv-ticker">${d.ticker}</div>
+        <div class="inv-ticker-name">${d.name}</div>
+      </td>
+      <td><span class="inv-type-badge inv-type-${d.asset_type}">${INV_TYPE_LABELS[d.asset_type] || d.asset_type}</span></td>
+      <td><strong class="inv-pnl-pos">${fmtBRL(d.amount)}</strong></td>
+      <td style="font-size:12px;color:var(--text-muted);">${d.notes || '—'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="invDeleteDiv(${d.id})">🗑</button></td>
+    </tr>`).join('');
+}
+
+async function invDeleteDiv(id) {
+  if (!confirm('Remover este registro?')) return;
+  const res = await api('DELETE', `/api/investments/dividends/${id}`);
+  toast(res.message, 'info');
+  loadInvDividends();
+  loadInvestments();
+}
+
+// ── Tab events for investments ────────────────────────────────────────────────
+document.querySelectorAll('.tab[data-group="inv"]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const target = tab.dataset.tab;
+    if (target === 'tab-inv-transactions') loadInvTransactions();
+    if (target === 'tab-inv-dividends') loadInvDividends();
+    if (target === 'tab-inv-allocation') loadInvestments();
+  });
+});
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+function showInvModal(type) {
+  if (type === 'transaction' || type === 'dividend') {
+    // Populate asset dropdowns
+    const sel = document.getElementById(type === 'transaction' ? 'inv-tx-asset' : 'inv-div-asset');
+    sel.innerHTML = _invAssets.length
+      ? _invAssets.map(a => `<option value="${a.id}">${a.ticker} — ${a.name}</option>`).join('')
+      : '<option value="">Nenhum ativo cadastrado</option>';
+
+    if (type === 'transaction') {
+      // Set today's date
+      document.getElementById('inv-tx-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('inv-tx-qty').value = '';
+      document.getElementById('inv-tx-price').value = '';
+      document.getElementById('inv-tx-fees').value = '0';
+      document.getElementById('inv-tx-notes').value = '';
+      document.getElementById('inv-tx-total').textContent = 'R$ —';
+    }
+    if (type === 'dividend') {
+      document.getElementById('inv-div-date').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('inv-div-amount').value = '';
+      document.getElementById('inv-div-notes').value = '';
+    }
+  }
+  if (type === 'asset') {
+    document.getElementById('inv-asset-ticker').value = '';
+    document.getElementById('inv-asset-name').value = '';
+    document.getElementById('inv-asset-sector').value = '';
+    document.getElementById('inv-asset-notes').value = '';
+    document.getElementById('inv-asset-manual-price').value = '';
+    document.getElementById('inv-manual-price-row').classList.add('hidden');
+    document.getElementById('inv-ticker-hint').textContent = '';
+  }
+  document.getElementById(`inv-modal-${type}`).classList.remove('hidden');
+}
+
+function closeInvModal(type) {
+  document.getElementById(`inv-modal-${type}`).classList.add('hidden');
+}
+
+// Close modals on overlay click
+['asset','transaction','dividend','price'].forEach(type => {
+  const el = document.getElementById(`inv-modal-${type}`);
+  if (el) el.addEventListener('click', e => { if (e.target === e.currentTarget) closeInvModal(type); });
+});
+
+// Type change — show/hide manual price for renda fixa
+function onInvTypeChange() {
+  const type = document.getElementById('inv-asset-type').value;
+  const row = document.getElementById('inv-manual-price-row');
+  row.classList.toggle('hidden', type !== 'renda_fixa');
+  document.getElementById('inv-ticker-hint').textContent = type === 'crypto'
+    ? 'Use o símbolo internacional: BTC, ETH, SOL, BNB, ADA...'
+    : type === 'renda_fixa'
+    ? 'Use um nome descritivo, ex: CDB Banco X, Tesouro SELIC 2027'
+    : 'Use o código da B3: PETR4, HGLG11, BOVA11, AAPL34...';
+}
+
+let _tickerLookupTimeout = null;
+function onTickerInput() {
+  clearTimeout(_tickerLookupTimeout);
+  const ticker = document.getElementById('inv-asset-ticker').value.trim();
+  const type = document.getElementById('inv-asset-type').value;
+  if (!ticker || type === 'renda_fixa') return;
+  _tickerLookupTimeout = setTimeout(async () => {
+    const hint = document.getElementById('inv-ticker-hint');
+    hint.textContent = 'Buscando...';
+    const q = await api('GET', `/api/investments/quote/${encodeURIComponent(ticker)}?asset_type=${type}`).catch(() => null);
+    if (q && q.price) {
+      hint.textContent = `✅ ${q.name} — Preço atual: ${fmtBRL(q.price)}`;
+      if (!document.getElementById('inv-asset-name').value) {
+        document.getElementById('inv-asset-name').value = q.name;
+      }
+    } else if (q && q.detail) {
+      hint.textContent = `⚠️ Não encontrado — preencha o nome manualmente`;
+    } else {
+      hint.textContent = '';
+    }
+  }, 600);
+}
+
+// Transaction type selector
+document.querySelectorAll('[data-txtype]').forEach(label => {
+  label.addEventListener('click', () => {
+    document.querySelectorAll('[data-txtype]').forEach(l => l.classList.remove('selected'));
+    label.classList.add('selected');
+    label.querySelector('input[type=radio]').checked = true;
+  });
+});
+
+function updateTxTotal() {
+  const qty = parseFloat(document.getElementById('inv-tx-qty').value) || 0;
+  const price = parseFloat(document.getElementById('inv-tx-price').value) || 0;
+  const fees = parseFloat(document.getElementById('inv-tx-fees').value) || 0;
+  const txType = document.querySelector('[name=tx_type]:checked')?.value || 'buy';
+  const total = txType === 'buy' ? qty * price + fees : qty * price - fees;
+  document.getElementById('inv-tx-total').textContent = fmtBRL(total);
+}
+
+async function submitAddAsset() {
+  const ticker = document.getElementById('inv-asset-ticker').value.trim();
+  const name = document.getElementById('inv-asset-name').value.trim();
+  const asset_type = document.getElementById('inv-asset-type').value;
+  if (!ticker || !name) { toast('Preencha ticker e nome', 'warning'); return; }
+  const manual_price_val = document.getElementById('inv-asset-manual-price').value;
+  const res = await api('POST', '/api/investments/assets', {
+    ticker, name, asset_type,
+    sector: document.getElementById('inv-asset-sector').value.trim(),
+    notes: document.getElementById('inv-asset-notes').value.trim(),
+    manual_price: manual_price_val ? parseFloat(manual_price_val) : null,
+  });
+  toast(res.message || res.detail, res.success ? 'success' : 'error');
+  if (res.success) { closeInvModal('asset'); loadInvestments(); }
+}
+
+async function submitAddTransaction() {
+  const asset_id = parseInt(document.getElementById('inv-tx-asset').value);
+  const qty = parseFloat(document.getElementById('inv-tx-qty').value);
+  const price = parseFloat(document.getElementById('inv-tx-price').value);
+  const fees = parseFloat(document.getElementById('inv-tx-fees').value) || 0;
+  const tx_date = document.getElementById('inv-tx-date').value;
+  const tx_type = document.querySelector('[name=tx_type]:checked')?.value || 'buy';
+  if (!asset_id || !qty || !price) { toast('Preencha todos os campos obrigatórios', 'warning'); return; }
+  const res = await api('POST', '/api/investments/transactions', {
+    asset_id, transaction_type: tx_type, quantity: qty, price, fees,
+    transaction_date: tx_date,
+    notes: document.getElementById('inv-tx-notes').value.trim(),
+  });
+  toast(res.message || res.detail, res.success ? 'success' : 'error');
+  if (res.success) { closeInvModal('transaction'); loadInvestments(); }
+}
+
+async function submitAddDividend() {
+  const asset_id = parseInt(document.getElementById('inv-div-asset').value);
+  const amount = parseFloat(document.getElementById('inv-div-amount').value);
+  const div_date = document.getElementById('inv-div-date').value;
+  if (!asset_id || !amount || !div_date) { toast('Preencha todos os campos', 'warning'); return; }
+  const res = await api('POST', '/api/investments/dividends', {
+    asset_id, amount, dividend_date: div_date,
+    notes: document.getElementById('inv-div-notes').value.trim(),
+  });
+  toast(res.message || res.detail, res.success ? 'success' : 'error');
+  if (res.success) { closeInvModal('dividend'); loadInvDividends(); loadInvestments(); }
+}
+
+function openPriceModal(assetId, currentPrice) {
+  document.getElementById('inv-price-asset-id').value = assetId;
+  document.getElementById('inv-price-value').value = currentPrice || '';
+  document.getElementById('inv-modal-price').classList.remove('hidden');
+}
+
+async function submitUpdatePrice() {
+  const asset_id = parseInt(document.getElementById('inv-price-asset-id').value);
+  const price = parseFloat(document.getElementById('inv-price-value').value);
+  if (!price) { toast('Informe o valor', 'warning'); return; }
+  const res = await api('PATCH', `/api/investments/assets/${asset_id}/price`, { price });
+  toast(res.message || res.detail, res.success ? 'success' : 'error');
+  if (res.success) { closeInvModal('price'); loadInvestments(); }
+}
+
+async function invDeleteAsset(id) {
+  if (!confirm('Remover ativo e todo o histórico de transações e dividendos?')) return;
+  const res = await api('DELETE', `/api/investments/assets/${id}`);
+  toast(res.message, 'info');
+  loadInvestments();
+}
+
+function invAddTxForAsset(assetId) {
+  showInvModal('transaction');
+  setTimeout(() => {
+    const sel = document.getElementById('inv-tx-asset');
+    if (sel) sel.value = assetId;
+  }, 50);
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
 init();
 

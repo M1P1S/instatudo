@@ -319,6 +319,97 @@ input[type=range] { width: 100%; accent-color: var(--accent); }
 .w-full { width: 100%; }
 .hidden { display: none !important; }
 
+/* ── Investment table ── */
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.inv-table th {
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.inv-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.inv-table tbody tr:last-child td { border-bottom: none; }
+.inv-table tbody tr:hover { background: var(--surface2); }
+
+.inv-ticker {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+.inv-ticker-name {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.inv-type-badge {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.inv-type-acao    { background: rgba(99,102,241,.2);  color: #818cf8; }
+.inv-type-fii     { background: rgba(34,197,94,.2);   color: #4ade80; }
+.inv-type-crypto  { background: rgba(245,158,11,.2);  color: #fbbf24; }
+.inv-type-renda_fixa { background: rgba(20,184,166,.2); color: #2dd4bf; }
+.inv-type-etf     { background: rgba(168,85,247,.2);  color: #c084fc; }
+.inv-type-bdr     { background: rgba(236,72,153,.2);  color: #f472b6; }
+
+.inv-pnl-pos { color: var(--success); font-weight: 700; }
+.inv-pnl-neg { color: var(--danger);  font-weight: 700; }
+.inv-change-pos { color: var(--success); font-size: 11px; }
+.inv-change-neg { color: var(--danger);  font-size: 11px; }
+
+/* Donut chart */
+.donut-segment { transition: opacity .2s; }
+.donut-segment:hover { opacity: .8; cursor: pointer; }
+
+/* Allocation legend */
+.inv-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.inv-legend-item:last-child { border-bottom: none; }
+.inv-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.inv-legend-label { flex: 1; font-weight: 600; }
+.inv-legend-pct { color: var(--text-muted); font-size: 12px; min-width: 40px; text-align: right; }
+
+/* By-type summary row */
+.inv-type-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.inv-type-row:last-child { border-bottom: none; }
+
 @media (max-width: 768px) {
   .sidebar { width: 60px; padding: 16px 8px; }
   .nav-item span:last-child { display: none; }

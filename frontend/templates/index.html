@@ -145,6 +145,9 @@
     <button class="nav-item pro-feature" data-page="page-unfollow">
       <span class="nav-icon">➖</span><span>Unfollow</span>
     </button>
+    <button class="nav-item" data-page="page-investments">
+      <span class="nav-icon">💰</span><span>Investimentos</span>
+    </button>
     <button class="nav-item" data-page="page-content">
       <span class="nav-icon">💡</span><span>Conteúdo</span>
     </button>
@@ -353,6 +356,282 @@
       <div id="tab-scripts-list" class="tab-pane hidden" data-group="tp">
         <div style="display:flex;flex-direction:column;gap:12px;" id="script-list">
           <div class="text-muted">Nenhum roteiro salvo.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INVESTMENTS ── -->
+    <div id="page-investments" class="page">
+      <div class="flex justify-between items-center" style="margin-bottom:24px;">
+        <h1 class="page-title" style="margin:0">💰 Carteira de Investimentos</h1>
+        <button class="btn btn-primary btn-sm" onclick="showInvModal('asset')">+ Adicionar ativo</button>
+      </div>
+
+      <!-- Summary cards -->
+      <div class="grid-4" style="margin-bottom:20px;" id="inv-summary-cards">
+        <div class="stat-card">
+          <div class="stat-value" id="inv-total-invested">—</div>
+          <div class="stat-label">Total Investido</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="inv-total-current">—</div>
+          <div class="stat-label">Valor Atual</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="inv-total-pnl">—</div>
+          <div class="stat-label">Resultado (R$)</div>
+          <div class="stat-delta" id="inv-pnl-pct">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="inv-total-dividends">—</div>
+          <div class="stat-label">Dividendos Recebidos</div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active" data-group="inv" data-tab="tab-inv-portfolio">📊 Carteira</div>
+        <div class="tab" data-group="inv" data-tab="tab-inv-transactions">🔄 Transações</div>
+        <div class="tab" data-group="inv" data-tab="tab-inv-dividends">💵 Dividendos</div>
+        <div class="tab" data-group="inv" data-tab="tab-inv-allocation">🥧 Alocação</div>
+      </div>
+
+      <!-- Tab: Portfolio -->
+      <div id="tab-inv-portfolio" class="tab-pane" data-group="inv">
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="inv-table" id="inv-holdings-table">
+            <thead>
+              <tr>
+                <th>Ativo</th>
+                <th>Tipo</th>
+                <th>Qtd</th>
+                <th>PM</th>
+                <th>Preço Atual</th>
+                <th>Investido</th>
+                <th>Valor Atual</th>
+                <th>Resultado</th>
+                <th>Dividendos</th>
+                <th>DY</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="inv-holdings-body">
+              <tr><td colspan="11" class="text-muted" style="text-align:center;padding:32px;">Nenhum ativo na carteira. Clique em "+ Adicionar ativo" para começar.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: Transactions -->
+      <div id="tab-inv-transactions" class="tab-pane hidden" data-group="inv">
+        <div class="flex justify-between items-center" style="margin-bottom:12px;">
+          <span class="text-muted">Histórico de compras e vendas</span>
+          <button class="btn btn-primary btn-sm" onclick="showInvModal('transaction')">+ Registrar transação</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="inv-table" id="inv-tx-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Ativo</th>
+                <th>Tipo</th>
+                <th>Qtd</th>
+                <th>Preço</th>
+                <th>Taxas</th>
+                <th>Total</th>
+                <th>Obs</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="inv-tx-body">
+              <tr><td colspan="9" class="text-muted" style="text-align:center;padding:32px;">Nenhuma transação registrada.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: Dividends -->
+      <div id="tab-inv-dividends" class="tab-pane hidden" data-group="inv">
+        <div class="flex justify-between items-center" style="margin-bottom:12px;">
+          <span class="text-muted">Dividendos, JCP, rendimentos de FIIs e renda fixa</span>
+          <button class="btn btn-primary btn-sm" onclick="showInvModal('dividend')">+ Registrar dividendo</button>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <table class="inv-table">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Ativo</th>
+                <th>Tipo</th>
+                <th>Valor Recebido</th>
+                <th>Obs</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="inv-div-body">
+              <tr><td colspan="6" class="text-muted" style="text-align:center;padding:32px;">Nenhum dividendo registrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab: Allocation -->
+      <div id="tab-inv-allocation" class="tab-pane hidden" data-group="inv">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">🥧 Alocação por tipo</div>
+            <div style="display:flex;justify-content:center;margin-bottom:20px;">
+              <svg id="inv-donut" width="200" height="200" viewBox="0 0 200 200"></svg>
+            </div>
+            <div id="inv-legend" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">📈 Resumo por tipo</div>
+            <div id="inv-by-type-table" style="display:flex;flex-direction:column;gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INVESTMENT MODALS ── -->
+    <!-- Add Asset Modal -->
+    <div id="inv-modal-asset" class="modal-overlay hidden">
+      <div class="modal-box" style="max-width:480px;">
+        <div class="modal-title">Adicionar Ativo</div>
+        <div class="form-group">
+          <label class="form-label">Tipo de ativo</label>
+          <select id="inv-asset-type" class="form-select" onchange="onInvTypeChange()">
+            <option value="acao">Ação (B3)</option>
+            <option value="fii">FII</option>
+            <option value="etf">ETF</option>
+            <option value="bdr">BDR</option>
+            <option value="crypto">Criptomoeda</option>
+            <option value="renda_fixa">Renda Fixa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ticker / Código</label>
+          <input id="inv-asset-ticker" class="form-input" type="text" placeholder="ex: PETR4, HGLG11, BTC, CDB Banco X" oninput="onTickerInput()" />
+          <div id="inv-ticker-hint" style="font-size:11px;color:var(--text-muted);margin-top:4px;"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nome</label>
+          <input id="inv-asset-name" class="form-input" type="text" placeholder="Nome do ativo" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Setor (opcional)</label>
+          <input id="inv-asset-sector" class="form-input" type="text" placeholder="ex: Energia, Shoppings, Tecnologia" />
+        </div>
+        <div id="inv-manual-price-row" class="form-group hidden">
+          <label class="form-label">Valor atual (R$) — para Renda Fixa</label>
+          <input id="inv-asset-manual-price" class="form-input" type="number" step="0.01" placeholder="Valor atualizado" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input id="inv-asset-notes" class="form-input" type="text" placeholder="opcional" />
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary" onclick="submitAddAsset()">Adicionar</button>
+          <button class="btn btn-outline" onclick="closeInvModal('asset')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Transaction Modal -->
+    <div id="inv-modal-transaction" class="modal-overlay hidden">
+      <div class="modal-box" style="max-width:480px;">
+        <div class="modal-title">Registrar Transação</div>
+        <div class="form-group">
+          <label class="form-label">Ativo</label>
+          <select id="inv-tx-asset" class="form-select"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <div class="flex gap-8">
+            <label class="unit-option selected" data-txtype="buy">
+              <input type="radio" name="tx_type" value="buy" checked /> Compra
+            </label>
+            <label class="unit-option" data-txtype="sell">
+              <input type="radio" name="tx_type" value="sell" /> Venda
+            </label>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Quantidade</label>
+            <input id="inv-tx-qty" class="form-input" type="number" step="any" min="0.000001" placeholder="0" oninput="updateTxTotal()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Preço unitário (R$)</label>
+            <input id="inv-tx-price" class="form-input" type="number" step="0.0001" min="0" placeholder="0,00" oninput="updateTxTotal()" />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Taxas / corretagem (R$)</label>
+            <input id="inv-tx-fees" class="form-input" type="number" step="0.01" min="0" value="0" oninput="updateTxTotal()" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data</label>
+            <input id="inv-tx-date" class="form-input" type="date" />
+          </div>
+        </div>
+        <div id="inv-tx-total-preview" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+          Total: <strong id="inv-tx-total">R$ —</strong>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input id="inv-tx-notes" class="form-input" type="text" placeholder="opcional" />
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary" onclick="submitAddTransaction()">Registrar</button>
+          <button class="btn btn-outline" onclick="closeInvModal('transaction')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Dividend Modal -->
+    <div id="inv-modal-dividend" class="modal-overlay hidden">
+      <div class="modal-box" style="max-width:420px;">
+        <div class="modal-title">Registrar Dividendo / Rendimento</div>
+        <div class="form-group">
+          <label class="form-label">Ativo</label>
+          <select id="inv-div-asset" class="form-select"></select>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Valor recebido (R$)</label>
+            <input id="inv-div-amount" class="form-input" type="number" step="0.01" min="0" placeholder="0,00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Data do pagamento</label>
+            <input id="inv-div-date" class="form-input" type="date" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Observações</label>
+          <input id="inv-div-notes" class="form-input" type="text" placeholder="opcional (ex: rendimento FII, JCP...)" />
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary" onclick="submitAddDividend()">Registrar</button>
+          <button class="btn btn-outline" onclick="closeInvModal('dividend')">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Update Manual Price Modal -->
+    <div id="inv-modal-price" class="modal-overlay hidden">
+      <div class="modal-box" style="max-width:380px;">
+        <div class="modal-title">Atualizar Valor</div>
+        <p class="text-muted" style="margin-bottom:16px;">Informe o valor atual por unidade para ativos de renda fixa ou sem cotação automática.</p>
+        <input type="hidden" id="inv-price-asset-id" />
+        <div class="form-group">
+          <label class="form-label">Valor atual (R$ por unidade)</label>
+          <input id="inv-price-value" class="form-input" type="number" step="0.01" min="0" placeholder="0,00" />
+        </div>
+        <div class="flex gap-8">
+          <button class="btn btn-primary" onclick="submitUpdatePrice()">Salvar</button>
+          <button class="btn btn-outline" onclick="closeInvModal('price')">Cancelar</button>
         </div>
       </div>
     </div>

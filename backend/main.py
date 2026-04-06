@@ -12,7 +12,7 @@ load_dotenv()
 
 from .db.database import init_db, get_setting, set_setting, get_connection
 from .modules import instagram_client, follower, unfollower, analytics, content, teleprompter
-from .modules import app_auth, asaas
+from .modules import app_auth, asaas, investment
 
 app = FastAPI(title="InstaTudo", version="2.0.0")
 
@@ -378,6 +378,109 @@ def update_script(script_id: int, body: ScriptBody, current_user: dict = Depends
 @app.delete("/api/teleprompter/scripts/{script_id}")
 def delete_script(script_id: int, current_user: dict = Depends(get_current_user)):
     return teleprompter.delete_script(script_id, app_user_id=current_user["id"])
+
+
+# ── Investments (all plans) ───────────────────────────────────────────────────
+
+class AssetBody(BaseModel):
+    ticker: str
+    name: str
+    asset_type: str
+    sector: str = ""
+    notes: str = ""
+    manual_price: Optional[float] = None
+
+
+class TransactionBody(BaseModel):
+    asset_id: int
+    transaction_type: str  # buy | sell
+    quantity: float
+    price: float
+    fees: float = 0.0
+    transaction_date: Optional[str] = None
+    notes: str = ""
+
+
+class DividendBody(BaseModel):
+    asset_id: int
+    amount: float
+    dividend_date: str
+    notes: str = ""
+
+
+class ManualPriceBody(BaseModel):
+    price: float
+
+
+@app.post("/api/investments/assets")
+def inv_add_asset(body: AssetBody, current_user: dict = Depends(get_current_user)):
+    return investment.add_asset(
+        current_user["id"], body.ticker, body.name, body.asset_type,
+        body.sector, body.notes, body.manual_price,
+    )
+
+
+@app.get("/api/investments/assets")
+def inv_get_assets(current_user: dict = Depends(get_current_user)):
+    return investment.get_assets(current_user["id"])
+
+
+@app.delete("/api/investments/assets/{asset_id}")
+def inv_delete_asset(asset_id: int, current_user: dict = Depends(get_current_user)):
+    return investment.delete_asset(asset_id, current_user["id"])
+
+
+@app.patch("/api/investments/assets/{asset_id}/price")
+def inv_update_price(asset_id: int, body: ManualPriceBody, current_user: dict = Depends(get_current_user)):
+    return investment.update_asset_manual_price(asset_id, current_user["id"], body.price)
+
+
+@app.post("/api/investments/transactions")
+def inv_add_transaction(body: TransactionBody, current_user: dict = Depends(get_current_user)):
+    return investment.add_transaction(
+        current_user["id"], body.asset_id, body.transaction_type,
+        body.quantity, body.price, body.fees, body.transaction_date, body.notes,
+    )
+
+
+@app.get("/api/investments/transactions")
+def inv_get_transactions(current_user: dict = Depends(get_current_user)):
+    return investment.get_transactions(current_user["id"])
+
+
+@app.delete("/api/investments/transactions/{tx_id}")
+def inv_delete_transaction(tx_id: int, current_user: dict = Depends(get_current_user)):
+    return investment.delete_transaction(tx_id, current_user["id"])
+
+
+@app.post("/api/investments/dividends")
+def inv_add_dividend(body: DividendBody, current_user: dict = Depends(get_current_user)):
+    return investment.add_dividend(
+        current_user["id"], body.asset_id, body.amount, body.dividend_date, body.notes,
+    )
+
+
+@app.get("/api/investments/dividends")
+def inv_get_dividends(current_user: dict = Depends(get_current_user)):
+    return investment.get_dividends(current_user["id"])
+
+
+@app.delete("/api/investments/dividends/{div_id}")
+def inv_delete_dividend(div_id: int, current_user: dict = Depends(get_current_user)):
+    return investment.delete_dividend(div_id, current_user["id"])
+
+
+@app.get("/api/investments/portfolio")
+def inv_portfolio(current_user: dict = Depends(get_current_user)):
+    return investment.get_portfolio_summary(current_user["id"])
+
+
+@app.get("/api/investments/quote/{ticker}")
+def inv_quote(ticker: str, asset_type: str = "acao", current_user: dict = Depends(get_current_user)):
+    q = investment.get_quote(ticker, asset_type)
+    if not q:
+        raise HTTPException(status_code=404, detail="Ativo não encontrado")
+    return q
 
 
 # ── Settings (Pro only) ───────────────────────────────────────────────────────

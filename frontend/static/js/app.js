@@ -938,6 +938,7 @@ document.querySelectorAll('.tab[data-group="inv"]').forEach(tab => {
     if (target === 'tab-inv-transactions') loadInvTransactions();
     if (target === 'tab-inv-dividends') loadInvDividends();
     if (target === 'tab-inv-allocation') loadInvestments();
+    if (target === 'tab-inv-brokers') renderBrokers();
   });
 });
 
@@ -1107,6 +1108,365 @@ async function invDeleteAsset(id) {
   toast(res.message, 'info');
   loadInvestments();
 }
+
+// ── Broker recommendations ────────────────────────────────────────────────────
+const BROKERS = [
+  // ── Corretoras de valores ─────────────────────────────────────────────────
+  {
+    id: 'clear',
+    name: 'Clear Corretora',
+    emoji: '⚡',
+    color: '#1e40af',
+    type: 'corretora',
+    typeLabel: 'Corretora de Valores (B3)',
+    rating: 4.5,
+    categories: ['acao'],
+    tags: ['Ações', 'FIIs', 'ETF', 'BDR', 'Opções', 'Fundos'],
+    fee: { label: 'Corretagem Ações', value: 'Gratuita (day trade R$ 10)' },
+    highlights: [
+      'Taxa zero para ordens de ações no mercado fracionário e lote padrão',
+      'Plataforma Profit (gráficos profissionais, análise técnica)',
+      'Acesso completo à B3: Ações, FIIs, ETFs, BDRs e Opções',
+      'Parte do grupo XP — solidez e estrutura robusta',
+    ],
+    pros: ['Taxa zero', 'Plataforma profissional', 'Ampla oferta de ativos', 'APP completo'],
+    cons: ['Day trade tem taxa', 'Atendimento pode ser lento', 'Poucos produtos de RF'],
+    bestFor: ['acao', 'fii', 'etf'],
+  },
+  {
+    id: 'xp',
+    name: 'XP Investimentos',
+    emoji: '🏆',
+    color: '#ea580c',
+    type: 'corretora',
+    typeLabel: 'Maior Corretora do Brasil',
+    rating: 4.5,
+    categories: ['acao', 'renda_fixa'],
+    tags: ['Ações', 'FIIs', 'ETF', 'CDB', 'LCI', 'LCA', 'Fundos', 'Tesouro'],
+    fee: { label: 'Corretagem Ações', value: 'Gratuita (Pro: R$ 4,90)' },
+    highlights: [
+      'Maior corretora do Brasil com mais de 4 milhões de clientes',
+      'Amplo cardápio de renda fixa: CDB, LCI, LCA, Debêntures',
+      'Fundos exclusivos e gestão de patrimônio para grandes valores',
+      'Conteúdo educacional Xpeed School gratuito',
+    ],
+    pros: ['Enorme variedade de produtos', 'Assessoria financeira', 'Plataforma sólida', 'Research gratuito'],
+    cons: ['Taxas em alguns produtos', 'Foco em grandes clientes', 'Interface pode ser complexa'],
+    bestFor: ['acao', 'renda_fixa', 'fii'],
+  },
+  {
+    id: 'inter',
+    name: 'Inter Invest',
+    emoji: '🟠',
+    color: '#ea580c',
+    type: 'banco_digital',
+    typeLabel: 'Banco Digital + Corretora',
+    rating: 4.2,
+    categories: ['acao', 'renda_fixa'],
+    tags: ['Ações', 'FIIs', 'CDB', 'Tesouro', 'Pix', 'Conta Digital'],
+    fee: { label: 'Corretagem', value: 'Gratuita' },
+    highlights: [
+      'Conta corrente, cartão e investimentos em um só app',
+      'Taxa zero de corretagem para todos os ativos',
+      'CDB Inter com rentabilidade acima da média do mercado',
+      'Cashback em compras com cartão Inter',
+    ],
+    pros: ['Tudo em um app', 'Zero corretagem', 'Conta digital integrada', 'CDB atrativo'],
+    cons: ['Plataforma menos robusta', 'Menos opções de fundos', 'Análise técnica limitada'],
+    bestFor: ['acao', 'renda_fixa'],
+  },
+  {
+    id: 'nuinvest',
+    name: 'NuInvest (Nubank)',
+    emoji: '🟣',
+    color: '#7c3aed',
+    type: 'banco_digital',
+    typeLabel: 'Banco Digital (Nubank)',
+    rating: 4.0,
+    categories: ['acao', 'renda_fixa'],
+    tags: ['Ações', 'FIIs', 'ETF', 'CDB', 'Tesouro', 'Crypto via Nu'],
+    fee: { label: 'Corretagem', value: 'Gratuita' },
+    highlights: [
+      'Integrado ao ecossistema Nubank — maior fintech da América Latina',
+      'Criptomoedas disponíveis diretamente no app do Nubank (BTC, ETH, SOL)',
+      'Reserva de emergência com liquidez diária automática',
+      'Interface extremamente simples, ideal para iniciantes',
+    ],
+    pros: ['Integração com Nubank', 'Cripto no app', 'Zero corretagem', 'Design clean'],
+    cons: ['Seleção limitada de FIIs', 'Sem análise técnica avançada', 'Cripto com taxas altas'],
+    bestFor: ['acao', 'renda_fixa', 'crypto'],
+  },
+  {
+    id: 'rico',
+    name: 'Rico Investimentos',
+    emoji: '🟢',
+    color: '#16a34a',
+    type: 'corretora',
+    typeLabel: 'Corretora (Grupo XP)',
+    rating: 3.9,
+    categories: ['acao', 'renda_fixa'],
+    tags: ['Ações', 'FIIs', 'CDB', 'LCI', 'LCA', 'Tesouro', 'Fundos'],
+    fee: { label: 'Corretagem Ações', value: 'Gratuita' },
+    highlights: [
+      'Foco em educação financeira e investidores iniciantes',
+      'Conteúdo educacional Rico para quem está começando',
+      'Mesmo cardápio de produtos que a XP (mesmo grupo)',
+      'Simuladores e ferramentas de planejamento financeiro',
+    ],
+    pros: ['Ótimo para iniciantes', 'Conteúdo educacional', 'Zero corretagem', 'Muitos produtos RF'],
+    cons: ['Plataforma menos avançada', 'Sem opções complexas', 'Atendimento em horário comercial'],
+    bestFor: ['acao', 'renda_fixa'],
+  },
+  {
+    id: 'btg',
+    name: 'BTG Pactual Digital',
+    emoji: '🔵',
+    color: '#1d4ed8',
+    type: 'banco',
+    typeLabel: 'Banco de Investimentos',
+    rating: 4.6,
+    categories: ['acao', 'renda_fixa'],
+    tags: ['CDB', 'LCI', 'LCA', 'Debêntures', 'Ações', 'FIIs', 'Fundos', 'COE'],
+    fee: { label: 'Corretagem Ações', value: 'Gratuita' },
+    highlights: [
+      'Maior banco de investimentos da América Latina',
+      'CDBs e LCIs com taxas entre os melhores do mercado',
+      'Acesso a produtos exclusivos: COE, fundos fechados',
+      'Plataforma BTG+ com assessoria dedicada para grandes patrimônios',
+    ],
+    pros: ['Taxas de RF excelentes', 'Produtos exclusivos', 'Alta solidez', 'CDB 100–115% CDI'],
+    cons: ['App menos intuitivo', 'Foco em grandes investidores', 'Menos conteúdo educativo'],
+    bestFor: ['renda_fixa', 'acao'],
+  },
+  {
+    id: 'toro',
+    name: 'Toro Investimentos',
+    emoji: '🐂',
+    color: '#b45309',
+    type: 'corretora',
+    typeLabel: 'Corretora Digital',
+    rating: 3.8,
+    categories: ['acao'],
+    tags: ['Ações', 'FIIs', 'ETF', 'BDR', 'Tesouro'],
+    fee: { label: 'Corretagem', value: 'Gratuita' },
+    highlights: [
+      'Plataforma com foco em análise fundamentalista',
+      'Copy invest: copie a carteira de investidores experientes',
+      'Relatórios e análises de ações em português',
+      'Comunidade ativa de investidores na plataforma',
+    ],
+    pros: ['Copy invest inovador', 'Análises gratuitas', 'Comunidade ativa', 'Zero corretagem'],
+    cons: ['Menor liquidez em alguns produtos', 'Sem opções complexas', 'Renda fixa limitada'],
+    bestFor: ['acao'],
+  },
+  {
+    id: 'orama',
+    name: 'Órama Investimentos',
+    emoji: '📈',
+    color: '#0891b2',
+    type: 'corretora',
+    typeLabel: 'Corretora — Foco em Fundos',
+    rating: 4.0,
+    categories: ['renda_fixa'],
+    tags: ['Fundos', 'CDB', 'LCI', 'LCA', 'Tesouro', 'Previdência'],
+    fee: { label: 'Fundos', value: 'Sem taxa de entrada' },
+    highlights: [
+      'Melhor seleção de fundos de investimento do mercado',
+      'Acesso a fundos exclusivos de grandes gestoras (Verde, Absolute, SPX)',
+      'Previdência privada PGBL/VGBL com fundos diferenciados',
+      'Excelente para diversificação via fundos multimercado',
+    ],
+    pros: ['Maior seleção de fundos', 'Gestoras famosas', 'Previdência robusta', 'Interface clara'],
+    cons: ['Sem ações diretas na B3', 'Mínimos elevados em alguns fundos', 'Foco restrito'],
+    bestFor: ['renda_fixa'],
+  },
+  // ── Tesouro Direto ────────────────────────────────────────────────────────
+  {
+    id: 'tesouro',
+    name: 'Tesouro Direto',
+    emoji: '🇧🇷',
+    color: '#15803d',
+    type: 'governo',
+    typeLabel: 'Governo Federal — Tesouro Nacional',
+    rating: 5.0,
+    categories: ['renda_fixa'],
+    tags: ['SELIC', 'IPCA+', 'Prefixado', 'Renda Fixa', 'Alta Segurança'],
+    fee: { label: 'Taxa de custódia', value: '0,2% a.a. (isenção até R$ 10 mil na SELIC)' },
+    highlights: [
+      'Investimento mais seguro do Brasil — garantia do Governo Federal',
+      'Tesouro SELIC: liquidez diária, ideal para reserva de emergência',
+      'Tesouro IPCA+: protege da inflação com rendimento real',
+      'Acessível a partir de R$ 30,00 via qualquer corretora habilitada',
+    ],
+    pros: ['Máxima segurança', 'Liquidez diária (SELIC)', 'Proteção à inflação (IPCA+)', 'Acessível'],
+    cons: ['IOF nos primeiros 30 dias', 'IR regressivo até 2 anos', 'Menor rentabilidade que CDB'],
+    bestFor: ['renda_fixa'],
+  },
+  // ── Exchanges de Cripto ───────────────────────────────────────────────────
+  {
+    id: 'binance',
+    name: 'Binance',
+    emoji: '🟡',
+    color: '#ca8a04',
+    type: 'exchange',
+    typeLabel: 'Exchange — Maior do Mundo',
+    rating: 4.5,
+    categories: ['crypto'],
+    tags: ['BTC', 'ETH', 'SOL', 'BNB', 'Altcoins', '+350 moedas', 'Staking', 'DeFi'],
+    fee: { label: 'Taxa de negociação', value: '0,1% (desconto com BNB)' },
+    highlights: [
+      'Maior exchange do mundo por volume — mais de US$ 20 bi/dia',
+      'Mais de 350 criptomoedas disponíveis para negociação',
+      'Staking e earn: gere renda passiva com cripto',
+      'P2P para comprar com Pix — sem tarifas intermediárias',
+    ],
+    pros: ['Maior liquidez', 'Taxa baixa', 'Staking nativo', 'P2P via Pix', 'Mercado futuros'],
+    cons: ['Interface complexa para iniciantes', 'Regulação pendente no BR', 'Suporte lento'],
+    bestFor: ['crypto'],
+  },
+  {
+    id: 'mercadobitcoin',
+    name: 'Mercado Bitcoin',
+    emoji: '🪙',
+    color: '#d97706',
+    type: 'exchange',
+    typeLabel: 'Exchange Brasileira (MB)',
+    rating: 4.0,
+    categories: ['crypto'],
+    tags: ['BTC', 'ETH', 'SOL', 'Altcoins', '+200 moedas', 'NFT', 'Token'],
+    fee: { label: 'Taxa Maker/Taker', value: '0,3% / 0,7%' },
+    highlights: [
+      'Maior exchange brasileira, fundada em 2011, regulada no Brasil',
+      'Integração fácil com banco brasileiro (Pix, TED)',
+      'Ambiente regulado: mais segurança jurídica para investidores BR',
+      'Tokenização de ativos: imóveis, precatórios, energia',
+    ],
+    pros: ['100% regulada no BR', 'Pix instantâneo', 'Mais de 10 anos no mercado', 'Suporte PT-BR'],
+    cons: ['Taxa mais alta que Binance', 'Menos moedas', 'Liquidez menor', 'App pode ser lento'],
+    bestFor: ['crypto'],
+  },
+  {
+    id: 'foxbit',
+    name: 'Foxbit',
+    emoji: '🦊',
+    color: '#ea580c',
+    type: 'exchange',
+    typeLabel: 'Exchange Brasileira (Pioneer)',
+    rating: 3.7,
+    categories: ['crypto'],
+    tags: ['BTC', 'ETH', 'Stablecoins', 'DREX', 'P2P'],
+    fee: { label: 'Taxa', value: '0,25% – 0,5%' },
+    highlights: [
+      'Uma das primeiras exchanges do Brasil, desde 2014',
+      'Foco em segurança e compliance regulatório',
+      'Parceira oficial para projetos DREX (Real Digital)',
+      'Boa opção para quem prefere exchange 100% brasileira',
+    ],
+    pros: ['Pioneira no Brasil', 'Alta segurança', 'Compliance regulatório', 'Projeto DREX'],
+    cons: ['Menos moedas', 'Interface menos moderna', 'Taxa mais alta', 'Volume menor'],
+    bestFor: ['crypto'],
+  },
+  // ── Internacional ─────────────────────────────────────────────────────────
+  {
+    id: 'avenue',
+    name: 'Avenue Securities',
+    emoji: '🇺🇸',
+    color: '#1e3a5f',
+    type: 'corretora',
+    typeLabel: 'Corretora Internacional (EUA)',
+    rating: 4.4,
+    categories: ['internacional'],
+    tags: ['Ações EUA', 'ETF Global', 'REITs', 'BDR', 'Dólar', 'S&P 500'],
+    fee: { label: 'Corretagem', value: 'Gratuita (ações fracionárias)' },
+    highlights: [
+      'Invista diretamente em ações dos EUA (Apple, Google, Amazon, Tesla)',
+      'ETFs globais: S&P 500, Nasdaq, mercados emergentes',
+      'REITs americanos — equivalente aos FIIs no mercado dos EUA',
+      'Conta em dólar — proteção natural contra desvalorização do real',
+    ],
+    pros: ['Acesso ao mercado americano', 'Conta em dólar', 'Zero corretagem', 'Diversificação global'],
+    cons: ['IRPF na declaração manual', 'Taxa de câmbio', 'Burocracia inicial', 'IR sobre ganhos'],
+    bestFor: ['internacional'],
+  },
+  {
+    id: 'nomad',
+    name: 'Nomad',
+    emoji: '🌎',
+    color: '#0f766e',
+    type: 'banco_digital',
+    typeLabel: 'Conta Global em Dólar',
+    rating: 4.2,
+    categories: ['internacional'],
+    tags: ['Conta EUA', 'ETF Global', 'Ações EUA', 'Dólar', 'Cartão Internacional'],
+    fee: { label: 'Câmbio', value: '1,5% (Plano Plus)' },
+    highlights: [
+      'Conta corrente em dólar nos EUA — cartão Visa internacional',
+      'Acesso a ETFs e ações americanas dentro do mesmo app',
+      'Câmbio competitivo para envio e recebimento de dólares',
+      'Ideal para quem quer diversificar em moeda forte',
+    ],
+    pros: ['Conta em dólar real', 'Cartão internacional', 'App em português', 'Câmbio competitivo'],
+    cons: ['Taxa de câmbio', 'Portfólio menor que Avenue', 'Custo de manutenção'],
+    bestFor: ['internacional'],
+  },
+];
+
+function starsHtml(rating) {
+  const full = Math.floor(rating);
+  const half = rating % 1 >= 0.5;
+  let s = '';
+  for (let i = 0; i < 5; i++) {
+    if (i < full) s += '★';
+    else if (i === full && half) s += '½';
+    else s += '☆';
+  }
+  return `<span class="broker-stars">${s}</span> <span style="font-size:12px;color:var(--text-muted);">${rating.toFixed(1)}</span>`;
+}
+
+function renderBrokers(filter = 'all') {
+  const container = document.getElementById('broker-cards');
+  const list = filter === 'all' ? BROKERS : BROKERS.filter(b => b.categories.includes(filter));
+  container.innerHTML = list.map(b => `
+    <div class="broker-card">
+      <div class="broker-card-header">
+        <div class="broker-logo" style="background:${b.color}22;border:1px solid ${b.color}44;">${b.emoji}</div>
+        <div style="flex:1;">
+          <div class="broker-name">${b.name}</div>
+          <div class="broker-type-label">${b.typeLabel}</div>
+          <div style="margin-top:4px;">${starsHtml(b.rating)}</div>
+        </div>
+      </div>
+      <div class="broker-tags">
+        ${b.tags.map((t, i) => `<span class="broker-tag ${i < 2 ? 'broker-tag-highlight' : ''}">${t}</span>`).join('')}
+      </div>
+      <div class="broker-fee-row">
+        <span>${b.fee.label}</span>
+        <strong>${b.fee.value}</strong>
+      </div>
+      <div class="broker-highlights">
+        ${b.highlights.map(h => `<div class="broker-hl-item">${h}</div>`).join('')}
+      </div>
+      <div class="broker-pros-cons">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--success);margin-bottom:4px;text-transform:uppercase;">Prós</div>
+          <ul class="broker-pros">${b.pros.map(p => `<li>${p}</li>`).join('')}</ul>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--danger);margin-bottom:4px;text-transform:uppercase;">Contras</div>
+          <ul class="broker-cons">${b.cons.map(c => `<li>${c}</li>`).join('')}</ul>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// Filter button events
+document.getElementById('broker-filter-btns')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.broker-filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.broker-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBrokers(btn.dataset.filter);
+});
 
 function invAddTxForAsset(assetId) {
   showInvModal('transaction');

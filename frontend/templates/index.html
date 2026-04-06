@@ -394,6 +394,7 @@
         <div class="tab" data-group="inv" data-tab="tab-inv-transactions">🔄 Transações</div>
         <div class="tab" data-group="inv" data-tab="tab-inv-dividends">💵 Dividendos</div>
         <div class="tab" data-group="inv" data-tab="tab-inv-allocation">🥧 Alocação</div>
+        <div class="tab" data-group="inv" data-tab="tab-inv-brokers">🏦 Corretoras</div>
       </div>
 
       <!-- Tab: Portfolio -->
@@ -490,6 +491,21 @@
             <div id="inv-by-type-table" style="display:flex;flex-direction:column;gap:8px;"></div>
           </div>
         </div>
+      </div>
+
+      <!-- Tab: Brokers -->
+      <div id="tab-inv-brokers" class="tab-pane hidden" data-group="inv">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">🔍 Filtrar por tipo de investimento</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;" id="broker-filter-btns">
+            <button class="broker-filter-btn active" data-filter="all">Todos</button>
+            <button class="broker-filter-btn" data-filter="acao">Ações / FIIs / ETF</button>
+            <button class="broker-filter-btn" data-filter="renda_fixa">Renda Fixa</button>
+            <button class="broker-filter-btn" data-filter="crypto">Cripto</button>
+            <button class="broker-filter-btn" data-filter="internacional">Internacional</button>
+          </div>
+        </div>
+        <div id="broker-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;"></div>
       </div>
     </div>
 

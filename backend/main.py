@@ -12,7 +12,7 @@ load_dotenv()
 
 from .db.database import init_db, get_setting, set_setting, get_connection
 from .modules import instagram_client, follower, unfollower, analytics, content, teleprompter
-from .modules import app_auth, asaas
+from .modules import app_auth, asaas, entregas
 
 app = FastAPI(title="InstaTudo", version="2.0.0")
 
@@ -35,6 +35,11 @@ def index():
 @app.get("/teleprompter-page")
 def tp_page():
     return FileResponse(os.path.join(FRONTEND, "templates", "teleprompter.html"))
+
+
+@app.get("/entregas")
+def entregas_page():
+    return FileResponse(os.path.join(FRONTEND, "templates", "entregas.html"))
 
 
 # ── JWT Auth dependency ────────────────────────────────────────────────────────
@@ -402,3 +407,174 @@ class SettingBody(BaseModel):
 def save_setting(body: SettingBody, current_user: dict = Depends(require_pro)):
     set_setting(body.key, body.value, user_id=current_user["id"])
     return {"success": True}
+
+
+# ── Delivery management ────────────────────────────────────────────────────────
+
+def _get_delivery_owner(authorization: Optional[str] = Header(None)) -> bool:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token de acesso necessário.")
+    token = authorization[7:]
+    if not entregas.verify_owner_token(token):
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado.")
+    return True
+
+
+class OwnerSetupBody(BaseModel):
+    password: str
+
+
+class OwnerLoginBody(BaseModel):
+    password: str
+
+
+class ChangePwBody(BaseModel):
+    old_password: str
+    new_password: str
+
+
+class MotoboyBody(BaseModel):
+    name: str
+    phone: str = ""
+
+
+class DeliveryBody(BaseModel):
+    client_name: str
+    address: str
+    product: str
+    delivery_fee: float
+    motoboy_id: Optional[int] = None
+    client_phone: str = ""
+    payment_method: str = "dinheiro"
+    notes: str = ""
+    date: Optional[str] = None
+
+
+class DeliveryUpdateBody(BaseModel):
+    client_name: Optional[str] = None
+    client_phone: Optional[str] = None
+    address: Optional[str] = None
+    product: Optional[str] = None
+    payment_method: Optional[str] = None
+    delivery_fee: Optional[float] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+    motoboy_id: Optional[int] = None
+
+
+class ParseWhatsAppBody(BaseModel):
+    text: str
+
+
+class MotoboyStatusBody(BaseModel):
+    status: str
+
+
+# owner setup / login
+@app.get("/api/entregas/setup-status")
+def delivery_setup_status():
+    return {"configured": entregas.is_owner_setup()}
+
+
+@app.post("/api/entregas/setup")
+def delivery_setup(body: OwnerSetupBody):
+    return entregas.setup_owner(body.password)
+
+
+@app.post("/api/entregas/login")
+def delivery_login(body: OwnerLoginBody):
+    token = entregas.owner_login(body.password)
+    if not token:
+        raise HTTPException(status_code=401, detail="Senha incorreta.")
+    return {"token": token}
+
+
+@app.post("/api/entregas/change-password")
+def delivery_change_pw(body: ChangePwBody, _: bool = Depends(_get_delivery_owner)):
+    return entregas.change_owner_password(body.old_password, body.new_password)
+
+
+# motoboys
+@app.get("/api/entregas/motoboys")
+def list_motoboys(_: bool = Depends(_get_delivery_owner)):
+    return entregas.get_motoboys()
+
+
+@app.post("/api/entregas/motoboys")
+def add_motoboy(body: MotoboyBody, _: bool = Depends(_get_delivery_owner)):
+    return entregas.create_motoboy(body.name, body.phone)
+
+
+@app.delete("/api/entregas/motoboys/{motoboy_id}")
+def remove_motoboy(motoboy_id: int, _: bool = Depends(_get_delivery_owner)):
+    return entregas.deactivate_motoboy(motoboy_id)
+
+
+# deliveries (owner)
+@app.get("/api/entregas/deliveries")
+def list_deliveries(
+    date: Optional[str] = None,
+    motoboy_id: Optional[int] = None,
+    status: Optional[str] = None,
+    _: bool = Depends(_get_delivery_owner),
+):
+    return entregas.get_deliveries(filter_date=date, motoboy_id=motoboy_id, status=status)
+
+
+@app.post("/api/entregas/deliveries")
+def create_delivery(body: DeliveryBody, _: bool = Depends(_get_delivery_owner)):
+    return entregas.create_delivery(
+        client_name=body.client_name,
+        address=body.address,
+        product=body.product,
+        delivery_fee=body.delivery_fee,
+        motoboy_id=body.motoboy_id,
+        client_phone=body.client_phone,
+        payment_method=body.payment_method,
+        notes=body.notes,
+        target_date=body.date,
+    )
+
+
+@app.patch("/api/entregas/deliveries/{delivery_id}")
+def update_delivery(
+    delivery_id: int,
+    body: DeliveryUpdateBody,
+    _: bool = Depends(_get_delivery_owner),
+):
+    result = entregas.update_delivery(delivery_id, **body.dict(exclude_none=True))
+    if not result:
+        raise HTTPException(status_code=404, detail="Entrega não encontrada.")
+    return result
+
+
+@app.delete("/api/entregas/deliveries/{delivery_id}")
+def delete_delivery(delivery_id: int, _: bool = Depends(_get_delivery_owner)):
+    return entregas.delete_delivery(delivery_id)
+
+
+@app.get("/api/entregas/summary")
+def delivery_summary(date: Optional[str] = None, _: bool = Depends(_get_delivery_owner)):
+    return entregas.get_summary(filter_date=date)
+
+
+@app.post("/api/entregas/parse-whatsapp")
+def parse_whatsapp(body: ParseWhatsAppBody, _: bool = Depends(_get_delivery_owner)):
+    return entregas.parse_whatsapp(body.text)
+
+
+# motoboy public endpoints (auth via access code only)
+@app.get("/api/entregas/motoboy/{code}")
+def motoboy_view(code: str, date: Optional[str] = None):
+    data = entregas.get_motoboy_deliveries(code, filter_date=date)
+    if not data:
+        raise HTTPException(status_code=404, detail="Código de acesso inválido.")
+    return data
+
+
+@app.patch("/api/entregas/motoboy/{code}/{delivery_id}")
+def motoboy_update(code: str, delivery_id: int, body: MotoboyStatusBody):
+    result = entregas.motoboy_update_status(code, delivery_id, body.status)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Entrega não encontrada ou acesso negado.")
+    return result

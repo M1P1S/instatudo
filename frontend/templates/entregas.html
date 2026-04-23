@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Controle de Entregas</title>
+  <link rel="stylesheet" href="/static/css/entregas.css">
+</head>
+<body>
+
+<!-- ══ LOGIN SCREEN ══════════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active">
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="icon">🛵</div>
+        <h2>Controle de Entregas</h2>
+        <p id="login-subtitle">Acesse como lojista ou motoboy</p>
+      </div>
+
+      <!-- owner login -->
+      <div id="login-owner-form">
+        <div class="form-group">
+          <label>Senha do lojista</label>
+          <input type="password" id="owner-password" placeholder="Digite sua senha" autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="ownerLogin()">Entrar como Lojista</button>
+        <div class="divider" style="margin:16px 0">ou</div>
+        <div class="form-group">
+          <label>Código do motoboy</label>
+          <input type="text" id="motoboy-code-input" placeholder="Ex: ABC123" maxlength="6"
+                 style="text-transform:uppercase;letter-spacing:3px;font-weight:700;text-align:center"
+                 oninput="this.value=this.value.toUpperCase()">
+        </div>
+        <button class="btn btn-outline btn-full" onclick="motoboyLogin()">Entrar como Motoboy</button>
+      </div>
+
+      <!-- first-time setup -->
+      <div id="login-setup-form" style="display:none">
+        <p style="text-align:center;color:#7f8c8d;margin-bottom:16px;font-size:0.9rem">
+          Primeira vez? Crie uma senha para o lojista.
+        </p>
+        <div class="form-group">
+          <label>Criar senha</label>
+          <input type="password" id="setup-password" placeholder="Mínimo 4 caracteres">
+        </div>
+        <div class="form-group">
+          <label>Confirmar senha</label>
+          <input type="password" id="setup-password2" placeholder="Repita a senha">
+        </div>
+        <button class="btn btn-primary btn-full" onclick="setupOwner()">Criar Senha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ OWNER DASHBOARD ════════════════════════════════════════════════════════ -->
+<div id="screen-owner" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <h1>🛵 Entregas</h1>
+      <span class="date" id="owner-date"></span>
+    </div>
+    <button class="btn-icon" onclick="ownerLogout()" title="Sair">⏏</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('hoje')">📋 Hoje</div>
+    <div class="tab" onclick="switchTab('nova')">➕ Nova</div>
+    <div class="tab" onclick="switchTab('motoboys')">👤 Motoboys</div>
+    <div class="tab" onclick="switchTab('resumo')">📊 Resumo</div>
+  </div>
+
+  <!-- TODAY -->
+  <div id="tab-hoje" class="tab-panel active content">
+    <div class="filter-row">
+      <input type="date" id="filter-date" onchange="loadDeliveries()">
+      <button class="btn btn-secondary btn-sm" onclick="setTodayFilter()">Hoje</button>
+    </div>
+    <div id="deliveries-list"></div>
+  </div>
+
+  <!-- NEW DELIVERY -->
+  <div id="tab-nova" class="tab-panel content">
+    <div class="wa-area">
+      <div class="form-group" style="margin-bottom:8px">
+        <label>📱 Colar mensagem do WhatsApp</label>
+        <textarea id="wa-text" placeholder="Cole aqui o texto do WhatsApp e clique em Preencher automaticamente..."></textarea>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="parseWhatsApp()">✨ Preencher automaticamente</button>
+    </div>
+
+    <div class="card">
+      <div class="form-group">
+        <label>Nome do cliente *</label>
+        <input type="text" id="new-client-name" placeholder="Ex: João Silva">
+      </div>
+      <div class="input-row">
+        <div class="form-group">
+          <label>WhatsApp / Tel</label>
+          <input type="tel" id="new-client-phone" placeholder="11 99999-9999">
+        </div>
+        <div class="form-group">
+          <label>Pagamento *</label>
+          <select id="new-payment">
+            <option value="dinheiro">Dinheiro</option>
+            <option value="PIX">PIX</option>
+            <option value="cartão">Cartão</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Endereço de entrega *</label>
+        <input type="text" id="new-address" placeholder="Rua, número, bairro">
+      </div>
+      <div class="form-group">
+        <label>Produto(s) *</label>
+        <input type="text" id="new-product" placeholder="Ex: Camiseta azul M">
+      </div>
+      <div class="input-row">
+        <div class="form-group">
+          <label>Taxa de entrega (R$) *</label>
+          <input type="number" id="new-fee" placeholder="0.00" step="0.50" min="0">
+        </div>
+        <div class="form-group">
+          <label>Motoboy</label>
+          <select id="new-motoboy">
+            <option value="">Sem motoboy</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observações</label>
+        <input type="text" id="new-notes" placeholder="Opcional">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="createDelivery()">Registrar Entrega</button>
+    </div>
+  </div>
+
+  <!-- MOTOBOYS -->
+  <div id="tab-motoboys" class="tab-panel content">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:12px">Cadastrar motoboy</div>
+      <div class="input-row">
+        <div class="form-group">
+          <label>Nome *</label>
+          <input type="text" id="new-motoboy-name" placeholder="Nome completo">
+        </div>
+        <div class="form-group">
+          <label>Telefone</label>
+          <input type="tel" id="new-motoboy-phone" placeholder="11 99999-9999">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addMotoboy()">Cadastrar</button>
+    </div>
+    <div id="motoboys-list"></div>
+
+    <div class="card" style="margin-top:8px">
+      <div class="card-title" style="margin-bottom:12px">🔑 Alterar senha do lojista</div>
+      <div class="form-group">
+        <label>Senha atual</label>
+        <input type="password" id="pw-old" placeholder="Senha atual">
+      </div>
+      <div class="form-group">
+        <label>Nova senha</label>
+        <input type="password" id="pw-new" placeholder="Nova senha">
+      </div>
+      <button class="btn btn-secondary" onclick="changePassword()">Alterar senha</button>
+    </div>
+  </div>
+
+  <!-- RESUMO -->
+  <div id="tab-resumo" class="tab-panel content">
+    <div class="filter-row">
+      <input type="date" id="summary-date" onchange="loadSummary()">
+      <button class="btn btn-secondary btn-sm" onclick="setTodaySummary()">Hoje</button>
+    </div>
+    <div id="summary-content"></div>
+  </div>
+</div>
+
+<!-- ══ MOTOBOY SCREEN ════════════════════════════════════════════════════════ -->
+<div id="screen-motoboy" class="screen">
+  <div class="topbar" style="background:#2980b9">
+    <div class="topbar-left">
+      <h1 id="motoboy-name-title">🛵 Minhas Entregas</h1>
+      <span class="date" id="motoboy-date"></span>
+    </div>
+    <button class="btn-icon" onclick="motoboyLogout()">⏏</button>
+  </div>
+  <div class="content">
+    <div id="motoboy-hero-card"></div>
+    <div id="motoboy-deliveries-list"></div>
+  </div>
+</div>
+
+<!-- ══ EDIT DELIVERY MODAL ════════════════════════════════════════════════════ -->
+<div id="modal-edit" class="modal-overlay" onclick="closeEditModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      Editar Entrega
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div class="form-group">
+      <label>Status</label>
+      <select id="edit-status">
+        <option value="pendente">Pendente</option>
+        <option value="em_entrega">Em entrega</option>
+        <option value="entregue">Entregue</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Nome do cliente</label>
+      <input type="text" id="edit-client-name">
+    </div>
+    <div class="form-group">
+      <label>WhatsApp / Tel</label>
+      <input type="tel" id="edit-client-phone">
+    </div>
+    <div class="form-group">
+      <label>Endereço</label>
+      <input type="text" id="edit-address">
+    </div>
+    <div class="form-group">
+      <label>Produto</label>
+      <input type="text" id="edit-product">
+    </div>
+    <div class="input-row">
+      <div class="form-group">
+        <label>Pagamento</label>
+        <select id="edit-payment">
+          <option value="dinheiro">Dinheiro</option>
+          <option value="PIX">PIX</option>
+          <option value="cartão">Cartão</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Taxa (R$)</label>
+        <input type="number" id="edit-fee" step="0.50" min="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Motoboy</label>
+      <select id="edit-motoboy">
+        <option value="">Sem motoboy</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Observações</label>
+      <input type="text" id="edit-notes">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" style="flex:1" onclick="saveEdit()">Salvar</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteDelivery()">🗑</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/static/js/entregas.js"></script>
+</body>
+</html>

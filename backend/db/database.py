@@ -87,6 +87,32 @@ def init_db():
             value TEXT NOT NULL,
             PRIMARY KEY (app_user_id, key)
         );
+
+        -- ── Delivery management ───────────────────────────────────────────────
+        CREATE TABLE IF NOT EXISTS motoboys (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT DEFAULT '',
+            access_code TEXT UNIQUE NOT NULL,
+            active INTEGER DEFAULT 1,
+            created_at TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS deliveries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            motoboy_id INTEGER REFERENCES motoboys(id),
+            client_name TEXT NOT NULL,
+            client_phone TEXT DEFAULT '',
+            address TEXT NOT NULL,
+            product TEXT NOT NULL,
+            payment_method TEXT DEFAULT 'dinheiro',
+            delivery_fee REAL NOT NULL DEFAULT 0,
+            status TEXT DEFAULT 'pendente',
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            delivered_at TEXT,
+            date TEXT NOT NULL
+        );
     """)
 
     # Global default settings (app_user_id = 0)
